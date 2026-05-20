@@ -8,7 +8,7 @@ import { exportToPDF } from './utils/pdfExport';
 import { Plus, BookOpen, FileDown } from 'lucide-react';
 
 function App() {
-  const { entries, addEntry, updateEntry, deleteEntry } = useJournal();
+  const { entries, loading, addEntry, updateEntry, deleteEntry } = useJournal();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [filters, setFilters] = useState<FilterState>({
