@@ -1,50 +1,93 @@
 import { useState, useEffect } from 'react';
 import type { JournalEntry } from '../types';
-
-const STORAGE_KEY = 'internship_journal_entries';
+import { supabase } from '../utils/supabase';
 
 export function useJournal() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch entries
+  const fetchEntries = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('entries')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      setEntries(data || []);
+    } catch (e) {
+      console.error('Error fetching entries:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setEntries(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse journal entries', e);
-      }
-    }
+    fetchEntries();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }, [entries]);
+  const addEntry = async (entry: Omit<JournalEntry, 'id'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('entries')
+        .insert([entry])
+        .select()
+        .single();
 
-  const addEntry = (entry: Omit<JournalEntry, 'id'>) => {
-    const newEntry = {
-      ...entry,
-      id: crypto.randomUUID(),
-    };
-    setEntries((prev) => [newEntry, ...prev]);
+      if (error) throw error;
+      if (data) {
+        setEntries((prev) => [data, ...prev]);
+      }
+    } catch (e) {
+      console.error('Error adding entry:', e);
+      alert('Failed to add entry');
+    }
   };
 
-  const updateEntry = (id: string, updated: Partial<JournalEntry>) => {
-    setEntries((prev) =>
-      prev.map((entry) => (entry.id === id ? { ...entry, ...updated } : entry))
-    );
+  const updateEntry = async (id: string, updated: Partial<JournalEntry>) => {
+    try {
+      const { error } = await supabase
+        .from('entries')
+        .update(updated)
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setEntries((prev) =>
+        prev.map((entry) => (entry.id === id ? { ...entry, ...updated } : entry))
+      );
+    } catch (e) {
+      console.error('Error updating entry:', e);
+      alert('Failed to update entry');
+    }
   };
 
-  const deleteEntry = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this entry?')) {
+  const deleteEntry = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this entry?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('entries')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
       setEntries((prev) => prev.filter((entry) => entry.id !== id));
+    } catch (e) {
+      console.error('Error deleting entry:', e);
+      alert('Failed to delete entry');
     }
   };
 
   return {
     entries,
+    loading,
     addEntry,
     updateEntry,
     deleteEntry,
+    refresh: fetchEntries
   };
 }

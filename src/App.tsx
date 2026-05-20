@@ -132,11 +132,15 @@ function App() {
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-2xl font-bold text-zinc-100">Journal Feed</h2>
               <div className="text-sm text-zinc-500">
-                Showing {filteredEntries.length} entries
+                {loading ? 'Loading...' : `Showing ${filteredEntries.length} entries`}
               </div>
             </div>
 
-            {filteredEntries.length > 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-32 bg-zinc-900/30 border border-zinc-800 rounded-3xl animate-pulse">
+                <p className="text-zinc-500 font-medium">Fetching your journal...</p>
+              </div>
+            ) : filteredEntries.length > 0 ? (
               <div className="space-y-6">
                 {filteredEntries.map((entry) => (
                   <JournalCard
