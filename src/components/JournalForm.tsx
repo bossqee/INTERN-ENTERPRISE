@@ -147,7 +147,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
                   <input
                     type="file"
                     accept="image/*"
-                    multiple
+                    multiple={true}
                     onChange={handleImageChange}
                     className="hidden"
                     id="image-upload"
