@@ -30,6 +30,7 @@ export function useJournal() {
 
   const addEntry = async (entry: Omit<JournalEntry, 'id'>) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('entries')
         .insert([entry])
@@ -40,9 +41,11 @@ export function useJournal() {
       if (data) {
         setEntries((prev) => [data, ...prev]);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error adding entry:', e);
-      alert('Failed to add entry');
+      alert(`Failed to add entry: ${e.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -58,9 +61,9 @@ export function useJournal() {
       setEntries((prev) =>
         prev.map((entry) => (entry.id === id ? { ...entry, ...updated } : entry))
       );
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error updating entry:', e);
-      alert('Failed to update entry');
+      alert(`Failed to update entry: ${e.message || 'Unknown error'}`);
     }
   };
 
@@ -76,9 +79,9 @@ export function useJournal() {
       if (error) throw error;
       
       setEntries((prev) => prev.filter((entry) => entry.id !== id));
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error deleting entry:', e);
-      alert('Failed to delete entry');
+      alert(`Failed to delete entry: ${e.message || 'Unknown error'}`);
     }
   };
 
