@@ -36,11 +36,21 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      Array.from(files).forEach((file) => {
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      let processedCount = 0;
+      const newImages: string[] = [];
+
+      newFiles.forEach((file) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          setImages((prev) => [...prev, reader.result as string]);
+          newImages.push(reader.result as string);
+          processedCount++;
+          if (processedCount === newFiles.length) {
+            setImages((prev) => [...prev, ...newImages]);
+            // Reset input value to allow selecting same files or picking more
+            e.target.value = '';
+          }
         };
         reader.readAsDataURL(file);
       });
