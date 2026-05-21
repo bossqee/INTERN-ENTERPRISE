@@ -80,6 +80,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
       tools,
       content,
       images,
+      image: images.length > 0 ? images[0] : undefined, // ส่งรูปแรกไปที่คอลัมน์เดิมด้วย
     };
 
     if (initialEntry) {
