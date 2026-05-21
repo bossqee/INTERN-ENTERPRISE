@@ -11,19 +11,30 @@ interface JournalCardProps {
 }
 
 export function JournalCard({ entry, onEdit, onDelete, onExport }: JournalCardProps) {
+  const images = entry.images || (entry.image ? [entry.image] : []);
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-zinc-700 transition-colors shadow-xl">
-      {entry.image && (
-        <div className="relative h-48 w-full group overflow-hidden">
-          <img
-            src={entry.image}
-            alt={entry.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <button className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20">
+      {images.length > 0 && (
+        <div className={`grid gap-1 ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} h-64 w-full group overflow-hidden`}>
+          {images.slice(0, 3).map((img, index) => (
+            <div key={index} className="relative h-full w-full group overflow-hidden border-r border-zinc-800 last:border-r-0">
+              <img
+                src={img}
+                alt={`${entry.title} ${index + 1}`}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              {index === 2 && images.length > 3 && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <span className="text-white font-bold text-xl">+{images.length - 3}</span>
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+            <div className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white pointer-events-auto hover:bg-white/20">
               <Maximize2 size={20} />
-            </button>
+            </div>
           </div>
         </div>
       )}

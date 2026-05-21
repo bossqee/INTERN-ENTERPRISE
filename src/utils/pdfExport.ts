@@ -46,9 +46,10 @@ export async function exportToPDF(entry: JournalEntry | JournalEntry[]) {
     const entryDiv = document.createElement('div');
     entryDiv.className = 'pdf-entry';
     
-    let imageHtml = '';
-    if (e.image) {
-      imageHtml = `<img src="${e.image}" class="pdf-image" />`;
+    let imagesHtml = '';
+    const images = e.images || (e.image ? [e.image] : []);
+    if (images.length > 0) {
+      imagesHtml = images.map(img => `<img src="${img}" class="pdf-image" />`).join('');
     }
 
     const contentHtml = await marked.parse(e.content);
@@ -61,7 +62,9 @@ export async function exportToPDF(entry: JournalEntry | JournalEntry[]) {
       <div class="pdf-tools">
         ${e.tools.map(t => `<span class="pdf-tool">${t}</span>`).join('')}
       </div>
-      ${imageHtml}
+      <div class="pdf-images">
+        ${imagesHtml}
+      </div>
       <div class="pdf-content">
         ${contentHtml}
       </div>

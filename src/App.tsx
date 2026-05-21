@@ -20,7 +20,7 @@ function App() {
 
   const availableTools = useMemo(() => {
     const tools = new Set<string>();
-    entries.forEach((e) => e.tools.forEach((t) => tools.add(t)));
+    entries.forEach((e) => e.tools?.forEach((t) => tools.add(t)));
     return Array.from(tools).sort();
   }, [entries]);
 

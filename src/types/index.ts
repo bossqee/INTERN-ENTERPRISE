@@ -4,7 +4,8 @@ export interface JournalEntry {
   title: string;
   tools: string[];
   content: string;
-  image?: string;
+  images?: string[];
+  image?: string; // Keep for backward compatibility if needed, or remove if safe
 }
 
 export interface FilterState {

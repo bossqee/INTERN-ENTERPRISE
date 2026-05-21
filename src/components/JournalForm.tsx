@@ -16,7 +16,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
   const [tools, setTools] = useState<string[]>([]);
   const [toolInput, setToolInput] = useState('');
   const [content, setContent] = useState('');
-  const [image, setImage] = useState<string | undefined>(undefined);
+  const [images, setImages] = useState<string[]>([]);
   const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
@@ -25,19 +25,30 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
       setDate(initialEntry.date);
       setTools(initialEntry.tools);
       setContent(initialEntry.content);
-      setImage(initialEntry.image);
+      // Handle both old single image and new multiple images
+      if (initialEntry.images) {
+        setImages(initialEntry.images);
+      } else if (initialEntry.image) {
+        setImages([initialEntry.image]);
+      }
     }
   }, [initialEntry]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImages((prev) => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAddTool = () => {
@@ -58,7 +69,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
       date,
       tools,
       content,
-      image,
+      images,
     };
 
     if (initialEntry) {
@@ -120,11 +131,12 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-                    <Upload size={14} /> Attachment (Image)
+                    <Upload size={14} /> Attachments (Images)
                   </label>
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleImageChange}
                     className="hidden"
                     id="image-upload"
@@ -134,7 +146,9 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
                     className="flex items-center gap-2 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-400 cursor-pointer hover:border-zinc-700 transition-all"
                   >
                     <Upload size={16} />
-                    <span className="text-sm truncate">{image ? 'Image Selected' : 'Choose Image...'}</span>
+                    <span className="text-sm truncate">
+                      {images.length > 0 ? `${images.length} images selected` : 'Choose Images...'}
+                    </span>
                   </label>
                 </div>
               </div>
@@ -179,16 +193,20 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
                 </div>
               </div>
 
-              {image && (
-                <div className="relative group rounded-xl overflow-hidden border border-zinc-800 h-40">
-                  <img src={image} alt="Preview" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setImage(undefined)}
-                    className="absolute top-2 right-2 p-1.5 bg-red-500/80 backdrop-blur-sm text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+              {images.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+                  {images.map((img, index) => (
+                    <div key={index} className="relative group rounded-xl overflow-hidden border border-zinc-800 h-24">
+                      <img src={img} alt={`Preview ${index}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 p-1 bg-red-500/80 backdrop-blur-sm text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
