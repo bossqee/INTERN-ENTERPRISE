@@ -7,7 +7,6 @@ export function useJournal() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch entries
   const fetchEntries = async () => {
     try {
       setLoading(true);
@@ -17,6 +16,12 @@ export function useJournal() {
         .order('date', { ascending: false });
 
       if (error) throw error;
+      
+      if (data && data.length > 0) {
+        console.log('--- DB Schema Check ---');
+        console.log('Columns:', Object.keys(data[0]));
+      }
+
       setEntries(data || []);
     } catch (e) {
       console.error('Error fetching entries:', e);
@@ -31,18 +36,13 @@ export function useJournal() {
 
   const processImages = async (imageObjects: { url: string; file?: File; dbName?: string }[]) => {
     const uploadPromises = imageObjects.map(async (obj) => {
-      // 1. New file -> compress and upload
       if (obj.file) {
         const compressed = await compressImage(obj.file);
         return await uploadImage(compressed);
       }
-      
-      // 2. Existing filename -> return as is
       if (obj.dbName && !obj.dbName.startsWith('data:')) {
         return obj.dbName;
       }
-
-      // 3. Old Base64 data -> Convert to file and upload to Storage
       if (obj.url && obj.url.startsWith('data:')) {
         try {
           const res = await fetch(obj.url);
@@ -54,12 +54,7 @@ export function useJournal() {
           return null;
         }
       }
-
-      // 4. External URL
-      if (obj.url && obj.url.startsWith('http')) {
-        return obj.url;
-      }
-
+      if (obj.url && obj.url.startsWith('http')) return obj.url;
       return null;
     });
 
@@ -67,24 +62,37 @@ export function useJournal() {
     return results.filter((url): url is string => url !== null);
   };
 
+  const sanitizePayload = (payload: any) => {
+    const MAX_LENGTH = 100000;
+    Object.entries(payload).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.length > MAX_LENGTH) {
+        throw new Error(`Field "${key}" is too large. Please remove and re-upload images.`);
+      }
+      if (Array.isArray(value)) {
+        value.forEach((v) => {
+          if (typeof v === 'string' && v.length > MAX_LENGTH) {
+            throw new Error(`Array element in "${key}" is too large.`);
+          }
+        });
+      }
+    });
+    return payload;
+  };
+
   const addEntry = async (entryData: any) => {
     try {
       const { title, date, tools, content, imageObjects } = entryData;
       const uploadedUrls = await processImages(imageObjects);
-      
-      // ตรวจสอบว่า uploadedUrls เป็น array จริงๆ
       const finalImages = Array.isArray(uploadedUrls) ? uploadedUrls : [];
 
-      const entryToSave = {
+      const entryToSave = sanitizePayload({
         title,
-        date: date,
-        tools: Array.from(tools), // มั่นใจว่าเป็น Array
+        date,
+        tools: Array.from(tools),
         content,
-        images: finalImages, // ส่งอาเรย์ตรงๆ
+        images: finalImages,
         image: finalImages.length > 0 ? finalImages[0] : null,
-      };
-
-      console.log('>>> Sending to Supabase:', entryToSave);
+      });
 
       const { data, error } = await supabase
         .from('entries')
@@ -93,16 +101,10 @@ export function useJournal() {
         .single();
 
       if (error) throw error;
-      
-      if (data) {
-        console.log('<<< Columns existing in your DB:', Object.keys(data));
-        console.log('<<< Data for "images" column:', data.images);
-        console.log('<<< Data for "tools" column:', data.tools);
-        setEntries((prev) => [data, ...prev]);
-      }
+      if (data) setEntries((prev) => [data, ...prev]);
     } catch (e: any) {
       console.error('Save failed:', e);
-      alert(`Save failed: ${e.message}`);
+      alert(e.message || 'Failed to save');
     }
   };
 
@@ -112,16 +114,14 @@ export function useJournal() {
       const uploadedUrls = await processImages(imageObjects);
       const finalImages = Array.isArray(uploadedUrls) ? uploadedUrls : [];
 
-      const entryToUpdate = {
+      const entryToUpdate = sanitizePayload({
         title,
         date,
         tools: Array.from(tools),
         content,
         images: finalImages,
         image: finalImages.length > 0 ? finalImages[0] : null,
-      };
-
-      console.log('>>> Updating ID:', id, entryToUpdate);
+      });
 
       const { data, error } = await supabase
         .from('entries')
@@ -131,44 +131,25 @@ export function useJournal() {
         .single();
 
       if (error) throw error;
-      
-      console.log('<<< Received from Supabase (After Update):', data);
-
       if (data) {
-        setEntries((prev) =>
-          prev.map((entry) => (entry.id === id ? data : entry))
-        );
+        setEntries((prev) => prev.map((e) => (e.id === id ? data : e)));
       }
     } catch (e: any) {
       console.error('Update failed:', e);
-      alert(`Update failed: ${e.message}`);
+      alert(e.message || 'Failed to update');
     }
   };
 
   const deleteEntry = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this entry?')) return;
-
+    if (!window.confirm('Are you sure you want to delete this?')) return;
     try {
-      const { error } = await supabase
-        .from('entries')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('entries').delete().eq('id', id);
       if (error) throw error;
-      
-      setEntries((prev) => prev.filter((entry) => entry.id !== id));
+      setEntries((prev) => prev.filter((e) => e.id !== id));
     } catch (e: any) {
-      console.error('Error deleting entry:', e);
-      alert(`Failed to delete entry: ${e.message || 'Unknown error'}`);
+      alert(e.message);
     }
   };
 
-  return {
-    entries,
-    loading,
-    addEntry,
-    updateEntry,
-    deleteEntry,
-    refresh: fetchEntries
-  };
+  return { entries, loading, addEntry, updateEntry, deleteEntry, refresh: fetchEntries };
 }
