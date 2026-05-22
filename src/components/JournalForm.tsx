@@ -16,8 +16,9 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
   const [tools, setTools] = useState<string[]>([]);
   const [toolInput, setToolInput] = useState('');
   const [content, setContent] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [imageObjects, setImageObjects] = useState<{ url: string; file?: File }[]>([]);
   const [isPreview, setIsPreview] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (initialEntry) {
@@ -25,12 +26,14 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
       setDate(initialEntry.date);
       setTools(initialEntry.tools);
       setContent(initialEntry.content);
-      // Handle both old single image and new multiple images
+      
+      let initialImages: string[] = [];
       if (initialEntry.images) {
-        setImages(initialEntry.images);
+        initialImages = initialEntry.images;
       } else if (initialEntry.image) {
-        setImages([initialEntry.image]);
+        initialImages = [initialEntry.image];
       }
+      setImageObjects(initialImages.map(url => ({ url })));
     }
   }, [initialEntry]);
 
@@ -38,27 +41,21 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
     const files = e.target.files;
     if (files && files.length > 0) {
       const newFiles = Array.from(files);
-      let processedCount = 0;
-      const newImages: string[] = [];
-
-      newFiles.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          newImages.push(reader.result as string);
-          processedCount++;
-          if (processedCount === newFiles.length) {
-            setImages((prev) => [...prev, ...newImages]);
-            // Reset input value to allow selecting same files or picking more
-            e.target.value = '';
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+      const newImageObjects = newFiles.map(file => ({
+        url: URL.createObjectURL(file),
+        file
+      }));
+      setImageObjects(prev => [...prev, ...newImageObjects]);
+      e.target.value = '';
     }
   };
 
   const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+    const removed = imageObjects[index];
+    if (removed.file) {
+      URL.revokeObjectURL(removed.url);
+    }
+    setImageObjects((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAddTool = () => {
@@ -72,23 +69,33 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
     setTools(tools.filter((t) => t !== toolToRemove));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const entryData = {
-      title,
-      date,
-      tools,
-      content,
-      images,
-      image: images.length > 0 ? images[0] : undefined, // ส่งรูปแรกไปที่คอลัมน์เดิมด้วย
-    };
+    setIsUploading(true);
+    
+    try {
+      const entryData = {
+        title,
+        date,
+        tools,
+        content,
+        // We pass the objects containing both existing URLs and new Files
+        // The onSave/onUpdate hooks will handle the actual upload
+        imageObjects, 
+      };
 
-    if (initialEntry) {
-      onUpdate(initialEntry.id, entryData);
-    } else {
-      onSave(entryData);
+      if (initialEntry) {
+        await onUpdate(initialEntry.id, entryData as any);
+      } else {
+        await onSave(entryData as any);
+      }
+      onClose();
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('Failed to save entry. Please try again.');
+    } finally {
+      setIsUploading(false);
     }
-    onClose();
   };
 
   return (
@@ -158,7 +165,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
                   >
                     <Upload size={16} />
                     <span className="text-sm truncate">
-                      {images.length > 0 ? `${images.length} images selected` : 'Choose Images...'}
+                      {imageObjects.length > 0 ? `${imageObjects.length} images selected` : 'Choose Images...'}
                     </span>
                   </label>
                 </div>
@@ -204,11 +211,11 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
                 </div>
               </div>
 
-              {images.length > 0 && (
+              {imageObjects.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-                  {images.map((img, index) => (
+                  {imageObjects.map((imgObj, index) => (
                     <div key={index} className="relative group rounded-xl overflow-hidden border border-zinc-800 h-24">
-                      <img src={img} alt={`Preview ${index}`} className="w-full h-full object-cover" />
+                      <img src={imgObj.url} alt={`Preview ${index}`} className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => removeImage(index)}
@@ -275,16 +282,25 @@ console.log('Hello World');
           <div className="flex justify-end gap-3 pt-6 border-t border-zinc-800">
             <button
               type="button"
+              disabled={isUploading}
               onClick={onClose}
-              className="px-6 py-2.5 text-zinc-400 hover:text-white transition-colors font-medium"
+              className="px-6 py-2.5 text-zinc-400 hover:text-white transition-colors font-medium disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-10 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
+              disabled={isUploading}
+              className="px-10 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] disabled:opacity-50 flex items-center gap-2"
             >
-              {initialEntry ? 'Update Entry' : 'Save Entry'}
+              {isUploading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                initialEntry ? 'Update Entry' : 'Save Entry'
+              )}
             </button>
           </div>
         </form>

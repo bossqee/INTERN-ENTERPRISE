@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { JournalEntry } from '../types';
 import { supabase } from '../utils/supabase';
+import { compressImage, uploadImage } from '../utils/imageProcess';
 
 export function useJournal() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -28,12 +29,37 @@ export function useJournal() {
     fetchEntries();
   }, []);
 
-  const addEntry = async (entry: Omit<JournalEntry, 'id'>) => {
+  const processImages = async (imageObjects: { url: string; file?: File }[]) => {
+    const uploadPromises = imageObjects.map(async (obj) => {
+      if (obj.file) {
+        const compressed = await compressImage(obj.file);
+        return await uploadImage(compressed);
+      }
+      return obj.url; // Existing URL
+    });
+    return Promise.all(uploadPromises);
+  };
+
+  const addEntry = async (entryData: any) => {
+    if (supabase.auth.getSession === undefined) { // Check if supabase is initialized
+      alert('Supabase is not properly configured. Check your .env file.');
+      return;
+    }
+
     try {
-      setLoading(true);
+      // images are handled inside imageObjects
+      const { imageObjects, ...rest } = entryData;
+      const uploadedUrls = await processImages(imageObjects);
+      
+      const entryToSave = {
+        ...rest,
+        images: uploadedUrls,
+        image: uploadedUrls.length > 0 ? uploadedUrls[0] : null,
+      };
+
       const { data, error } = await supabase
         .from('entries')
-        .insert([entry])
+        .insert([entryToSave])
         .select()
         .single();
 
@@ -43,27 +69,34 @@ export function useJournal() {
       }
     } catch (e: any) {
       console.error('Error adding entry:', e);
-      alert(`Failed to add entry: ${e.message || 'Unknown error'}`);
-    } finally {
-      setLoading(false);
+      throw e; // Let the form handle the error
     }
   };
 
-  const updateEntry = async (id: string, updated: Partial<JournalEntry>) => {
+  const updateEntry = async (id: string, updatedData: any) => {
     try {
+      const { imageObjects, ...rest } = updatedData;
+      const uploadedUrls = await processImages(imageObjects);
+
+      const entryToUpdate = {
+        ...rest,
+        images: uploadedUrls,
+        image: uploadedUrls.length > 0 ? uploadedUrls[0] : null,
+      };
+
       const { error } = await supabase
         .from('entries')
-        .update(updated)
+        .update(entryToUpdate)
         .eq('id', id);
 
       if (error) throw error;
       
       setEntries((prev) =>
-        prev.map((entry) => (entry.id === id ? { ...entry, ...updated } : entry))
+        prev.map((entry) => (entry.id === id ? { ...entry, ...entryToUpdate } : entry))
       );
     } catch (e: any) {
       console.error('Error updating entry:', e);
-      alert(`Failed to update entry: ${e.message || 'Unknown error'}`);
+      throw e;
     }
   };
 
