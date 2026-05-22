@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { JournalEntry } from '../types';
 import { supabase } from '../utils/supabase';
 import { compressImage, uploadImage } from '../utils/imageProcess';
+import { showAlert } from '../utils/swal';
 
 export function useJournal() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -11,17 +12,16 @@ export function useJournal() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('journal_logs') // ใช้ชื่อตารางใหม่
+        .from('journal_logs')
         .select('*')
         .order('date', { ascending: false });
 
       if (error) throw error;
       
-      // แปลงข้อมูลจาก journal_logs (DB) กลับมาเป็น JournalEntry (App)
       const mappedData = (data || []).map(item => ({
         ...item,
-        images: item.image_names || [], // Map image_names กลับมาเป็น images
-        image: item.main_image // Map main_image กลับมาเป็น image
+        images: item.image_names || [],
+        image: item.main_image
       }));
 
       setEntries(mappedData);
@@ -64,11 +64,9 @@ export function useJournal() {
         date,
         tools: Array.isArray(tools) ? tools : [],
         content,
-        image_names: uploadedFileNames, // ตรงกับชื่อคอลัมน์ใหม่ใน SQL
+        image_names: uploadedFileNames,
         main_image: uploadedFileNames.length > 0 ? uploadedFileNames[0] : null,
       };
-
-      console.log('Inserting into journal_logs:', payload);
 
       const { data, error } = await supabase
         .from('journal_logs')
@@ -76,10 +74,7 @@ export function useJournal() {
         .select()
         .single();
 
-      if (error) {
-        console.error('Supabase DB Error:', error);
-        throw new Error(`DB Error: ${error.message}`);
-      }
+      if (error) throw error;
       
       if (data) {
         const newEntry = {
@@ -88,9 +83,10 @@ export function useJournal() {
           image: data.main_image
         };
         setEntries((prev) => [newEntry, ...prev]);
+        showAlert.success('Entry Saved!', 'Your journal has been recorded successfully.');
       }
     } catch (e: any) {
-      alert(`Error: ${e.message}`);
+      showAlert.error('Save Failed', e.message);
       throw e;
     }
   };
@@ -125,21 +121,25 @@ export function useJournal() {
           image: data.main_image
         };
         setEntries((prev) => prev.map((e) => (e.id === id ? updatedEntry : e)));
+        showAlert.success('Entry Updated!', 'Changes have been saved successfully.');
       }
     } catch (e: any) {
-      alert(`Update Error: ${e.message}`);
+      showAlert.error('Update Failed', e.message);
       throw e;
     }
   };
 
   const deleteEntry = async (id: string) => {
-    if (!window.confirm('Delete this entry?')) return;
+    const confirmed = await showAlert.confirm('Are you sure?', 'You will not be able to recover this entry!');
+    if (!confirmed) return;
+
     try {
       const { error } = await supabase.from('journal_logs').delete().eq('id', id);
       if (error) throw error;
       setEntries((prev) => prev.filter((e) => e.id !== id));
+      showAlert.success('Deleted!', 'Your entry has been deleted.');
     } catch (e: any) {
-      alert(e.message);
+      showAlert.error('Delete Failed', e.message);
     }
   };
 

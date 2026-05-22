@@ -3,6 +3,7 @@ import html2canvas from 'html2canvas';
 import type { JournalEntry } from '../types';
 import { format } from 'date-fns';
 import { marked } from 'marked';
+import { getImageUrl } from './imageProcess';
 
 export async function exportToPDF(entry: JournalEntry | JournalEntry[]) {
   const entries = Array.isArray(entry) ? entry : [entry];
@@ -47,9 +48,11 @@ export async function exportToPDF(entry: JournalEntry | JournalEntry[]) {
     entryDiv.className = 'pdf-entry';
     
     let imagesHtml = '';
-    const images = e.images || (e.image ? [e.image] : []);
+    const rawImages = (e as any).image_names || e.images || (e.image ? [e.image] : []);
+    const images = (Array.isArray(rawImages) ? rawImages : []).map(img => getImageUrl(img));
+    
     if (images.length > 0) {
-      imagesHtml = images.map(img => `<img src="${img}" class="pdf-image" />`).join('');
+      imagesHtml = images.map(img => `<img src="${img}" class="pdf-image" crossorigin="anonymous" />`).join('');
     }
 
     const contentHtml = await marked.parse(e.content);

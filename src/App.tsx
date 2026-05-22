@@ -4,11 +4,14 @@ import type { JournalEntry, FilterState } from './types';
 import { JournalCard } from './components/JournalCard';
 import { JournalForm } from './components/JournalForm';
 import { Filters } from './components/Filters';
+import { Auth } from './components/Auth';
 import { exportToPDF } from './utils/pdfExport';
-import { Plus, BookOpen, FileDown } from 'lucide-react';
+import { Plus, BookOpen, FileDown, LogOut, User as UserIcon } from 'lucide-react';
+import { showAlert } from './utils/swal';
 
 function App() {
   const { entries, loading, addEntry, updateEntry, deleteEntry } = useJournal();
+  const [user, setUser] = useState<any>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [filters, setFilters] = useState<FilterState>({
@@ -53,11 +56,22 @@ function App() {
 
   const handleGlobalExport = () => {
     if (filteredEntries.length === 0) {
-      alert('No entries to export with current filters.');
+      showAlert.error('Export Error', 'No entries to export with current filters.');
       return;
     }
     exportToPDF(filteredEntries);
   };
+
+  const handleLogout = async () => {
+    const confirmed = await showAlert.confirm('Logout?', 'Are you sure you want to end your session?');
+    if (confirmed) {
+      setUser(null);
+    }
+  };
+
+  if (!user) {
+    return <Auth onLogin={setUser} />;
+  }
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 selection:bg-blue-500/30">
@@ -72,7 +86,7 @@ function App() {
               <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
                 Internship Journal
               </h1>
-              <p className="text-xs text-zinc-500 font-medium tracking-wider uppercase">Professional Logbook</p>
+              <p className="text-xs text-zinc-500 font-medium tracking-wider uppercase">Welcome, {user.name}</p>
             </div>
           </div>
 
@@ -90,6 +104,13 @@ function App() {
             >
               <Plus size={20} />
               <span className="hidden sm:inline">New Entry</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+              title="Logout"
+            >
+              <LogOut size={20} />
             </button>
           </div>
         </div>
