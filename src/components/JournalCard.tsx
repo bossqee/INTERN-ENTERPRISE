@@ -12,7 +12,11 @@ interface JournalCardProps {
 }
 
 export function JournalCard({ entry, onEdit, onDelete, onExport }: JournalCardProps) {
-  const images = (entry.images || (entry.image ? [entry.image] : [])).map(img => getImageUrl(img));
+  // ดึงรูปจาก images ก่อน ถ้าไม่มีหรือเป็นอาเรย์ว่าง ให้ไปดึงจาก image แทน
+  const images = ((entry.images && entry.images.length > 0) 
+    ? entry.images 
+    : (entry.image ? [entry.image] : []))
+    .map(img => getImageUrl(img));
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-zinc-700 transition-colors shadow-xl">

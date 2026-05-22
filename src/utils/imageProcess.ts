@@ -81,7 +81,8 @@ export async function uploadImage(file: File | Blob): Promise<string> {
  */
 export function getImageUrl(fileName: string): string {
   if (!fileName) return '';
-  if (fileName.startsWith('http')) return fileName; // ถ้าเป็น URL อยู่แล้ว (เผื่อข้อมูลเก่า)
+  // ถ้าเป็น URL อยู่แล้ว หรือเป็น Base64 ให้ส่งกลับไปเลย
+  if (fileName.startsWith('http') || fileName.startsWith('data:')) return fileName; 
   
   const { data } = supabase.storage.from('images').getPublicUrl(`entries/${fileName}`);
   return data.publicUrl;

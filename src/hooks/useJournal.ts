@@ -31,33 +31,60 @@ export function useJournal() {
 
   const processImages = async (imageObjects: { url: string; file?: File; dbName?: string }[]) => {
     const uploadPromises = imageObjects.map(async (obj) => {
+      // 1. New file -> compress and upload
       if (obj.file) {
-        // ถ้าเป็นไฟล์ใหม่ ให้บีบอัดและอัพโหลด จะได้ชื่อไฟล์กลับมา
         const compressed = await compressImage(obj.file);
         return await uploadImage(compressed);
       }
-      // ถ้าเป็นรูปเดิม ให้ส่งชื่อไฟล์เดิม (dbName) กลับไป
-      return obj.dbName || obj.url; 
+      
+      // 2. Existing filename -> return as is
+      if (obj.dbName && !obj.dbName.startsWith('data:')) {
+        return obj.dbName;
+      }
+
+      // 3. Old Base64 data -> Convert to file and upload to Storage
+      if (obj.url && obj.url.startsWith('data:')) {
+        try {
+          const res = await fetch(obj.url);
+          const blob = await res.blob();
+          const file = new File([blob], "recovered.jpg", { type: "image/jpeg" });
+          const compressed = await compressImage(file);
+          return await uploadImage(compressed);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // 4. External URL
+      if (obj.url && obj.url.startsWith('http')) {
+        return obj.url;
+      }
+
+      return null;
     });
-    return Promise.all(uploadPromises);
+
+    const results = await Promise.all(uploadPromises);
+    return results.filter((url): url is string => url !== null);
   };
 
   const addEntry = async (entryData: any) => {
-    if (supabase.auth.getSession === undefined) { // Check if supabase is initialized
-      alert('Supabase is not properly configured. Check your .env file.');
-      return;
-    }
-
     try {
-      // images are handled inside imageObjects
-      const { imageObjects, ...rest } = entryData;
+      const { title, date, tools, content, imageObjects } = entryData;
       const uploadedUrls = await processImages(imageObjects);
       
+      // ตรวจสอบว่า uploadedUrls เป็น array จริงๆ
+      const finalImages = Array.isArray(uploadedUrls) ? uploadedUrls : [];
+
       const entryToSave = {
-        ...rest,
-        images: uploadedUrls,
-        image: uploadedUrls.length > 0 ? uploadedUrls[0] : null,
+        title,
+        date: date,
+        tools: Array.from(tools), // มั่นใจว่าเป็น Array
+        content,
+        images: finalImages, // ส่งอาเรย์ตรงๆ
+        image: finalImages.length > 0 ? finalImages[0] : null,
       };
+
+      console.log('>>> Sending to Supabase:', entryToSave);
 
       const { data, error } = await supabase
         .from('entries')
@@ -66,39 +93,54 @@ export function useJournal() {
         .single();
 
       if (error) throw error;
+      
+      console.log('<<< Received from Supabase (After Save):', data);
+      
       if (data) {
         setEntries((prev) => [data, ...prev]);
       }
     } catch (e: any) {
-      console.error('Error adding entry:', e);
-      throw e; // Let the form handle the error
+      console.error('Save failed:', e);
+      alert(`Save failed: ${e.message}`);
     }
   };
 
   const updateEntry = async (id: string, updatedData: any) => {
     try {
-      const { imageObjects, ...rest } = updatedData;
+      const { title, date, tools, content, imageObjects } = updatedData;
       const uploadedUrls = await processImages(imageObjects);
+      const finalImages = Array.isArray(uploadedUrls) ? uploadedUrls : [];
 
       const entryToUpdate = {
-        ...rest,
-        images: uploadedUrls,
-        image: uploadedUrls.length > 0 ? uploadedUrls[0] : null,
+        title,
+        date,
+        tools: Array.from(tools),
+        content,
+        images: finalImages,
+        image: finalImages.length > 0 ? finalImages[0] : null,
       };
 
-      const { error } = await supabase
+      console.log('>>> Updating ID:', id, entryToUpdate);
+
+      const { data, error } = await supabase
         .from('entries')
         .update(entryToUpdate)
-        .eq('id', id);
+        .eq('id', id)
+        .select()
+        .single();
 
       if (error) throw error;
       
-      setEntries((prev) =>
-        prev.map((entry) => (entry.id === id ? { ...entry, ...entryToUpdate } : entry))
-      );
+      console.log('<<< Received from Supabase (After Update):', data);
+
+      if (data) {
+        setEntries((prev) =>
+          prev.map((entry) => (entry.id === id ? data : entry))
+        );
+      }
     } catch (e: any) {
-      console.error('Error updating entry:', e);
-      throw e;
+      console.error('Update failed:', e);
+      alert(`Update failed: ${e.message}`);
     }
   };
 
