@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import type { JournalEntry } from '../types';
-import { X, Upload, Plus, Trash2, Calendar as CalendarIcon, Type, Wrench as ToolIcon } from 'lucide-react';
+import { X, Upload, Plus, Trash2, Calendar as CalendarIcon, Type, Wrench as ToolIcon, Loader2 } from 'lucide-react';
 import { MarkdownPreview } from './MarkdownPreview';
 import { getImageUrl } from '../utils/imageProcess';
 
 interface JournalFormProps {
   initialEntry?: JournalEntry | null;
-  onSave: (entry: Omit<JournalEntry, 'id'>) => void;
-  onUpdate: (id: string, entry: Partial<JournalEntry>) => void;
+  onSave: (entry: any) => Promise<void>;
+  onUpdate: (id: string, entry: any) => Promise<void>;
   onClose: () => void;
 }
 
@@ -25,19 +25,13 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
     if (initialEntry) {
       setTitle(initialEntry.title);
       setDate(initialEntry.date);
-      setTools(initialEntry.tools);
+      setTools(initialEntry.tools || []);
       setContent(initialEntry.content);
       
-      let initialImages: string[] = [];
-      if (initialEntry.images) {
-        initialImages = initialEntry.images;
-      } else if (initialEntry.image) {
-        initialImages = [initialEntry.image];
-      }
-      // แปลงชื่อไฟล์ใน DB ให้เป็น URL สำหรับ Preview
+      const initialImages = initialEntry.images || (initialEntry.image ? [initialEntry.image] : []);
       setImageObjects(initialImages.map(name => ({ 
         url: getImageUrl(name), 
-        dbName: name // เก็บชื่อเดิมไว้เปรียบเทียบ
+        dbName: name 
       })));
     }
   }, [initialEntry]);
@@ -57,9 +51,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
 
   const removeImage = (index: number) => {
     const removed = imageObjects[index];
-    if (removed.file) {
-      URL.revokeObjectURL(removed.url);
-    }
+    if (removed.file) URL.revokeObjectURL(removed.url);
     setImageObjects((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -76,28 +68,20 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsUploading(true);
+    if (isUploading) return;
     
+    setIsUploading(true);
     try {
-      const entryData = {
-        title,
-        date,
-        tools,
-        content,
-        // We pass the objects containing both existing URLs and new Files
-        // The onSave/onUpdate hooks will handle the actual upload
-        imageObjects, 
-      };
-
+      const entryData = { title, date, tools, content, imageObjects };
+      
       if (initialEntry) {
-        await onUpdate(initialEntry.id, entryData as any);
+        await onUpdate(initialEntry.id, entryData);
       } else {
-        await onSave(entryData as any);
+        await onSave(entryData);
       }
       onClose();
-    } catch (error) {
-      console.error('Submit error:', error);
-      alert('Failed to save entry. Please try again.');
+    } catch (error: any) {
+      alert(`Error: ${error.message || 'Something went wrong'}`);
     } finally {
       setIsUploading(false);
     }
@@ -106,178 +90,81 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-zinc-900 border border-zinc-800 w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-800">
-          <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-            {initialEntry ? 'Edit Journal Entry' : 'New Journal Entry'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <h2 className="text-xl font-bold text-zinc-100">{initialEntry ? 'Edit Entry' : 'New Entry'}</h2>
+          <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white rounded-lg"><X size={20} /></button>
         </div>
 
-        {/* Content */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column: Details */}
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-                  <Type size={14} /> Task Title
-                </label>
+                <label className="text-sm font-medium text-zinc-400">Task Title</label>
                 <input
-                  type="text"
-                  required
-                  value={title}
+                  type="text" required value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="What did you work on today?"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-                    <CalendarIcon size={14} /> Date
-                  </label>
+                  <label className="text-sm font-medium text-zinc-400">Date</label>
                   <input
-                    type="date"
-                    required
-                    value={date}
+                    type="date" required value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100"
                   />
                 </div>
-
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-                    <Upload size={14} /> Attachments (Images)
-                  </label>
+                  <label className="text-sm font-medium text-zinc-400">Images</label>
                   <input
-                    type="file"
-                    accept="image/*"
-                    multiple={true}
-                    onChange={handleImageChange}
-                    className="hidden"
-                    id="image-upload"
+                    type="file" accept="image/*" multiple onChange={handleImageChange}
+                    className="hidden" id="image-upload"
                   />
-                  <label
-                    htmlFor="image-upload"
-                    className="flex items-center gap-2 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-400 cursor-pointer hover:border-zinc-700 transition-all"
-                  >
-                    <Upload size={16} />
-                    <span className="text-sm truncate">
-                      {imageObjects.length > 0 ? `${imageObjects.length} images selected` : 'Choose Images...'}
-                    </span>
+                  <label htmlFor="image-upload" className="flex items-center gap-2 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-400 cursor-pointer">
+                    <Upload size={16} /> <span>{imageObjects.length} Images</span>
                   </label>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-                  <ToolIcon size={14} /> Tools & Technologies
-                </label>
+                <label className="text-sm font-medium text-zinc-400">Tools</label>
                 <div className="flex gap-2">
                   <input
-                    type="text"
-                    value={toolInput}
+                    type="text" value={toolInput}
                     onChange={(e) => setToolInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTool())}
-                    placeholder="e.g. React, Git"
-                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100"
                   />
-                  <button
-                    type="button"
-                    onClick={handleAddTool}
-                    className="p-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-xl transition-colors"
-                  >
-                    <Plus size={20} />
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2 min-h-[32px]">
-                  {tools.map((tool) => (
-                    <span
-                      key={tool}
-                      className="flex items-center gap-1.5 px-3 py-1 bg-blue-500/10 text-blue-400 text-xs font-medium rounded-full border border-blue-500/20"
-                    >
-                      {tool}
-                      <button
-                        type="button"
-                        onClick={() => removeTool(tool)}
-                        className="hover:text-red-400 transition-colors"
-                      >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
+                  <button type="button" onClick={handleAddTool} className="p-2.5 bg-zinc-800 rounded-xl"><Plus size={20} /></button>
                 </div>
               </div>
 
               {imageObjects.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-                  {imageObjects.map((imgObj, index) => (
-                    <div key={index} className="relative group rounded-xl overflow-hidden border border-zinc-800 h-24">
-                      <img src={imgObj.url} alt={`Preview ${index}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 p-1 bg-red-500/80 backdrop-blur-sm text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                <div className="grid grid-cols-3 gap-3">
+                  {imageObjects.map((img, i) => (
+                    <div key={i} className="relative group rounded-xl overflow-hidden h-24 border border-zinc-800">
+                      <img src={img.url} className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 p-1 bg-red-500 rounded-md opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Right Column: Markdown Content */}
             <div className="space-y-4 flex flex-col h-full min-h-[400px]">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-zinc-400">Working Steps & Details</label>
-                <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setIsPreview(false)}
-                    className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${!isPreview ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-white'}`}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsPreview(true)}
-                    className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${isPreview ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-white'}`}
-                  >
-                    Preview
-                  </button>
-                </div>
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-zinc-400">Content (Markdown)</label>
+                <button type="button" onClick={() => setIsPreview(!isPreview)} className="text-xs bg-zinc-800 px-3 py-1 rounded-md">{isPreview ? 'Edit' : 'Preview'}</button>
               </div>
-              
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1">
                 {isPreview ? (
-                  <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-4 overflow-y-auto">
-                    {content ? (
-                      <MarkdownPreview content={content} />
-                    ) : (
-                      <div className="text-zinc-600 italic text-sm">Nothing to preview...</div>
-                    )}
-                  </div>
+                  <div className="h-full bg-zinc-950 p-4 rounded-xl overflow-y-auto border border-zinc-800"><MarkdownPreview content={content} /></div>
                 ) : (
                   <textarea
-                    required
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="### Today's Tasks
-- [x] Refactored auth flow
-- [ ] Implement unit tests
-
-```javascript
-console.log('Hello World');
-```"
-                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-zinc-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all resize-none"
+                    required value={content} onChange={(e) => setContent(e.target.value)}
+                    className="w-full h-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-zinc-100 font-mono text-sm resize-none"
                   />
                 )}
               </div>
@@ -285,27 +172,12 @@ console.log('Hello World');
           </div>
 
           <div className="flex justify-end gap-3 pt-6 border-t border-zinc-800">
+            <button type="button" onClick={onClose} className="px-6 py-2.5 text-zinc-400">Cancel</button>
             <button
-              type="button"
-              disabled={isUploading}
-              onClick={onClose}
-              className="px-6 py-2.5 text-zinc-400 hover:text-white transition-colors font-medium disabled:opacity-50"
+              type="submit" disabled={isUploading}
+              className="px-10 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center gap-2"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isUploading}
-              className="px-10 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] disabled:opacity-50 flex items-center gap-2"
-            >
-              {isUploading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                initialEntry ? 'Update Entry' : 'Save Entry'
-              )}
+              {isUploading ? <><Loader2 className="animate-spin" size={20} /> Saving...</> : (initialEntry ? 'Update' : 'Save')}
             </button>
           </div>
         </form>
