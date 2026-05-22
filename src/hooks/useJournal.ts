@@ -94,9 +94,10 @@ export function useJournal() {
 
       if (error) throw error;
       
-      console.log('<<< Received from Supabase (After Save):', data);
-      
       if (data) {
+        console.log('<<< Columns existing in your DB:', Object.keys(data));
+        console.log('<<< Data for "images" column:', data.images);
+        console.log('<<< Data for "tools" column:', data.tools);
         setEntries((prev) => [data, ...prev]);
       }
     } catch (e: any) {
