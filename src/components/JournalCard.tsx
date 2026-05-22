@@ -12,10 +12,10 @@ interface JournalCardProps {
 }
 
 export function JournalCard({ entry, onEdit, onDelete, onExport }: JournalCardProps) {
-  // ดึงรูปจาก images ก่อน ถ้าไม่มีหรือเป็นอาเรย์ว่าง ให้ไปดึงจาก image แทน
-  const images = ((entry.images && entry.images.length > 0) 
-    ? entry.images 
-    : (entry.image ? [entry.image] : []))
+  // รองรับทั้งโครงสร้างใหม่ (image_names) และโครงสร้างเดิม (images)
+  const rawImages = (entry as any).image_names || entry.images || (entry.image ? [entry.image] : []);
+  const images = (Array.isArray(rawImages) ? rawImages : [])
+    .filter(img => img && typeof img === 'string')
     .map(img => getImageUrl(img));
 
   return (
