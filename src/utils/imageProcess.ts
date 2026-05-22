@@ -53,28 +53,36 @@ export async function compressImage(file: File, maxWidth = 1200, quality = 0.7):
 }
 
 /**
- * Uploads an image to Supabase Storage and returns the public URL.
+ * Uploads an image to Supabase Storage and returns only the filename.
  * @param file The file or blob to upload
- * @returns The public URL of the uploaded image
+ * @returns The filename of the uploaded image
  */
 export async function uploadImage(file: File | Blob): Promise<string> {
-  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.jpg`;
-  const filePath = `journal-images/${fileName}`;
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
+  const filePath = `entries/${fileName}`; // เก็บไว้ใน folder entries ใน bucket
 
   const { error: uploadError } = await supabase.storage
-    .from('images') // Assumes a bucket named 'images' exists
+    .from('images')
     .upload(filePath, file, {
       contentType: 'image/jpeg',
       upsert: true,
     });
 
   if (uploadError) {
-    // If bucket doesn't exist, this might fail. 
-    // In a real app, we'd ensure the bucket exists.
-    console.error('Upload error:', uploadError);
+    console.error('Upload error details:', uploadError);
     throw new Error(`Upload failed: ${uploadError.message}`);
   }
 
-  const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+  return fileName; // ส่งกลับแค่ชื่อไฟล์
+}
+
+/**
+ * Converts a filename stored in DB to a full Public URL.
+ */
+export function getImageUrl(fileName: string): string {
+  if (!fileName) return '';
+  if (fileName.startsWith('http')) return fileName; // ถ้าเป็น URL อยู่แล้ว (เผื่อข้อมูลเก่า)
+  
+  const { data } = supabase.storage.from('images').getPublicUrl(`entries/${fileName}`);
   return data.publicUrl;
 }

@@ -29,13 +29,15 @@ export function useJournal() {
     fetchEntries();
   }, []);
 
-  const processImages = async (imageObjects: { url: string; file?: File }[]) => {
+  const processImages = async (imageObjects: { url: string; file?: File; dbName?: string }[]) => {
     const uploadPromises = imageObjects.map(async (obj) => {
       if (obj.file) {
+        // ถ้าเป็นไฟล์ใหม่ ให้บีบอัดและอัพโหลด จะได้ชื่อไฟล์กลับมา
         const compressed = await compressImage(obj.file);
         return await uploadImage(compressed);
       }
-      return obj.url; // Existing URL
+      // ถ้าเป็นรูปเดิม ให้ส่งชื่อไฟล์เดิม (dbName) กลับไป
+      return obj.dbName || obj.url; 
     });
     return Promise.all(uploadPromises);
   };

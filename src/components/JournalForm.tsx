@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { JournalEntry } from '../types';
 import { X, Upload, Plus, Trash2, Calendar as CalendarIcon, Type, Wrench as ToolIcon } from 'lucide-react';
 import { MarkdownPreview } from './MarkdownPreview';
+import { getImageUrl } from '../utils/imageProcess';
 
 interface JournalFormProps {
   initialEntry?: JournalEntry | null;
@@ -16,7 +17,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
   const [tools, setTools] = useState<string[]>([]);
   const [toolInput, setToolInput] = useState('');
   const [content, setContent] = useState('');
-  const [imageObjects, setImageObjects] = useState<{ url: string; file?: File }[]>([]);
+  const [imageObjects, setImageObjects] = useState<{ url: string; file?: File; dbName?: string }[]>([]);
   const [isPreview, setIsPreview] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -33,7 +34,11 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
       } else if (initialEntry.image) {
         initialImages = [initialEntry.image];
       }
-      setImageObjects(initialImages.map(url => ({ url })));
+      // แปลงชื่อไฟล์ใน DB ให้เป็น URL สำหรับ Preview
+      setImageObjects(initialImages.map(name => ({ 
+        url: getImageUrl(name), 
+        dbName: name // เก็บชื่อเดิมไว้เปรียบเทียบ
+      })));
     }
   }, [initialEntry]);
 

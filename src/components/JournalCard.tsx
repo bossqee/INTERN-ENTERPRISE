@@ -2,6 +2,7 @@ import type { JournalEntry } from '../types';
 import { Calendar, Tag, FileDown, Edit2, Trash2, Maximize2 } from 'lucide-react';
 import { MarkdownPreview } from './MarkdownPreview';
 import { format } from 'date-fns';
+import { getImageUrl } from '../utils/imageProcess';
 
 interface JournalCardProps {
   entry: JournalEntry;
@@ -11,7 +12,7 @@ interface JournalCardProps {
 }
 
 export function JournalCard({ entry, onEdit, onDelete, onExport }: JournalCardProps) {
-  const images = entry.images || (entry.image ? [entry.image] : []);
+  const images = (entry.images || (entry.image ? [entry.image] : [])).map(img => getImageUrl(img));
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-zinc-700 transition-colors shadow-xl">
