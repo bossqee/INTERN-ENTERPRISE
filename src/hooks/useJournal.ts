@@ -18,13 +18,14 @@ export function useJournal() {
       if (error) throw error;
       
       if (data && data.length > 0) {
-        console.log('--- DB Schema Check ---');
-        console.log('Columns:', Object.keys(data[0]));
+        console.log('--- DB Diagnostic ---');
+        console.log('Columns found in DB:', Object.keys(data[0]));
+        console.log('Is "images" an array?', Array.isArray(data[0].images));
       }
 
       setEntries(data || []);
     } catch (e) {
-      console.error('Error fetching entries:', e);
+      console.error('Fetch Error:', e);
     } finally {
       setLoading(false);
     }
@@ -35,76 +36,68 @@ export function useJournal() {
   }, []);
 
   const processImages = async (imageObjects: { url: string; file?: File; dbName?: string }[]) => {
-    const uploadPromises = imageObjects.map(async (obj) => {
-      if (obj.file) {
-        const compressed = await compressImage(obj.file);
-        return await uploadImage(compressed);
-      }
-      if (obj.dbName && !obj.dbName.startsWith('data:')) {
-        return obj.dbName;
-      }
-      if (obj.url && obj.url.startsWith('data:')) {
-        try {
+    // อัพโหลดทีละรูปเพื่อลดภาระ Network
+    const results: string[] = [];
+    for (const obj of imageObjects) {
+      try {
+        if (obj.file) {
+          const compressed = await compressImage(obj.file);
+          const fileName = await uploadImage(compressed);
+          results.push(fileName);
+        } else if (obj.dbName && !obj.dbName.startsWith('data:')) {
+          results.push(obj.dbName);
+        } else if (obj.url && obj.url.startsWith('data:')) {
           const res = await fetch(obj.url);
           const blob = await res.blob();
-          const file = new File([blob], "recovered.jpg", { type: "image/jpeg" });
+          const file = new File([blob], "img.jpg", { type: "image/jpeg" });
           const compressed = await compressImage(file);
-          return await uploadImage(compressed);
-        } catch (e) {
-          return null;
+          const fileName = await uploadImage(compressed);
+          results.push(fileName);
+        } else if (obj.url && obj.url.startsWith('http')) {
+          results.push(obj.url);
         }
+      } catch (err) {
+        console.error('Failed to process one image, skipping...', err);
       }
-      if (obj.url && obj.url.startsWith('http')) return obj.url;
-      return null;
-    });
-
-    const results = await Promise.all(uploadPromises);
-    return results.filter((url): url is string => url !== null);
-  };
-
-  const sanitizePayload = (payload: any) => {
-    const MAX_LENGTH = 100000;
-    Object.entries(payload).forEach(([key, value]) => {
-      if (typeof value === 'string' && value.length > MAX_LENGTH) {
-        throw new Error(`Field "${key}" is too large. Please remove and re-upload images.`);
-      }
-      if (Array.isArray(value)) {
-        value.forEach((v) => {
-          if (typeof v === 'string' && v.length > MAX_LENGTH) {
-            throw new Error(`Array element in "${key}" is too large.`);
-          }
-        });
-      }
-    });
-    return payload;
+    }
+    return results;
   };
 
   const addEntry = async (entryData: any) => {
     try {
       const { title, date, tools, content, imageObjects } = entryData;
       const uploadedUrls = await processImages(imageObjects);
-      const finalImages = Array.isArray(uploadedUrls) ? uploadedUrls : [];
-
-      const entryToSave = sanitizePayload({
+      
+      const payload: any = {
         title,
         date,
-        tools: Array.from(tools),
+        tools: Array.isArray(tools) ? tools : [],
         content,
-        images: finalImages,
-        image: finalImages.length > 0 ? finalImages[0] : null,
-      });
+        image: uploadedUrls.length > 0 ? uploadedUrls[0] : null,
+      };
+
+      // ส่ง images เฉพาะเมื่อมีข้อมูลและไม่เป็นค่าว่าง
+      if (uploadedUrls.length > 0) {
+        payload.images = uploadedUrls;
+      } else {
+        payload.images = []; // หรือลองเอาออกเลยถ้ายัง Error: delete payload.images;
+      }
+
+      console.log('Final Payload to Insert:', payload);
 
       const { data, error } = await supabase
         .from('entries')
-        .insert([entryToSave])
+        .insert([payload])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Insert Error:', error);
+        throw new Error(`DB Error: ${error.message}`);
+      }
       if (data) setEntries((prev) => [data, ...prev]);
     } catch (e: any) {
-      console.error('Save failed:', e);
-      alert(e.message || 'Failed to save');
+      alert(e.message);
     }
   };
 
@@ -112,36 +105,39 @@ export function useJournal() {
     try {
       const { title, date, tools, content, imageObjects } = updatedData;
       const uploadedUrls = await processImages(imageObjects);
-      const finalImages = Array.isArray(uploadedUrls) ? uploadedUrls : [];
 
-      const entryToUpdate = sanitizePayload({
+      const payload: any = {
         title,
         date,
-        tools: Array.from(tools),
+        tools: Array.isArray(tools) ? tools : [],
         content,
-        images: finalImages,
-        image: finalImages.length > 0 ? finalImages[0] : null,
-      });
+        image: uploadedUrls.length > 0 ? uploadedUrls[0] : null,
+        images: uploadedUrls
+      };
+
+      console.log('Final Payload to Update:', payload);
 
       const { data, error } = await supabase
         .from('entries')
-        .update(entryToUpdate)
+        .update(payload)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Update Error:', error);
+        throw new Error(`DB Error: ${error.message}`);
+      }
       if (data) {
         setEntries((prev) => prev.map((e) => (e.id === id ? data : e)));
       }
     } catch (e: any) {
-      console.error('Update failed:', e);
-      alert(e.message || 'Failed to update');
+      alert(e.message);
     }
   };
 
   const deleteEntry = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this?')) return;
+    if (!window.confirm('Delete this entry?')) return;
     try {
       const { error } = await supabase.from('entries').delete().eq('id', id);
       if (error) throw error;
