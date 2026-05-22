@@ -11,12 +11,20 @@ export function useJournal() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('entries')
+        .from('journal_logs') // ใช้ชื่อตารางใหม่
         .select('*')
         .order('date', { ascending: false });
 
       if (error) throw error;
-      setEntries(data || []);
+      
+      // แปลงข้อมูลจาก journal_logs (DB) กลับมาเป็น JournalEntry (App)
+      const mappedData = (data || []).map(item => ({
+        ...item,
+        images: item.image_names || [], // Map image_names กลับมาเป็น images
+        image: item.main_image // Map main_image กลับมาเป็น image
+      }));
+
+      setEntries(mappedData);
     } catch (e) {
       console.error('Fetch Error:', e);
     } finally {
@@ -32,31 +40,15 @@ export function useJournal() {
     const results: string[] = [];
     for (const obj of imageObjects) {
       try {
-        // 1. ถ้าเป็นไฟล์ใหม่ที่พึ่งเลือกมา
         if (obj.file) {
           const compressed = await compressImage(obj.file);
           const fileName = await uploadImage(compressed);
           results.push(fileName);
-          continue;
-        }
-        
-        // 2. ถ้าเป็นข้อมูล Base64 (ที่หลุดมา) ให้แปลงเป็นไฟล์แล้วอัพโหลดใหม่
-        if (obj.url && obj.url.startsWith('data:')) {
-          const res = await fetch(obj.url);
-          const blob = await res.blob();
-          const file = new File([blob], "recovered.jpg", { type: "image/jpeg" });
-          const compressed = await compressImage(file);
-          const fileName = await uploadImage(compressed);
-          results.push(fileName);
-          continue;
-        }
-
-        // 3. ถ้าเป็นชื่อไฟล์ปกติจาก DB (dbName)
-        if (obj.dbName && !obj.dbName.startsWith('data:')) {
+        } else if (obj.dbName) {
           results.push(obj.dbName);
         }
       } catch (err) {
-        console.error('Failed to process image:', err);
+        console.error('Image processing failed:', err);
       }
     }
     return results;
@@ -72,22 +64,33 @@ export function useJournal() {
         date,
         tools: Array.isArray(tools) ? tools : [],
         content,
-        images: uploadedFileNames,
-        image: uploadedFileNames.length > 0 ? uploadedFileNames[0] : null,
+        image_names: uploadedFileNames, // ตรงกับชื่อคอลัมน์ใหม่ใน SQL
+        main_image: uploadedFileNames.length > 0 ? uploadedFileNames[0] : null,
       };
 
-      console.log('Sending to DB:', payload); // ตรวจสอบว่าในนี้ไม่มี Base64 ยาวๆ
+      console.log('Inserting into journal_logs:', payload);
 
       const { data, error } = await supabase
-        .from('entries')
+        .from('journal_logs')
         .insert([payload])
         .select()
         .single();
 
-      if (error) throw error;
-      if (data) setEntries((prev) => [data, ...prev]);
+      if (error) {
+        console.error('Supabase DB Error:', error);
+        throw new Error(`DB Error: ${error.message}`);
+      }
+      
+      if (data) {
+        const newEntry = {
+          ...data,
+          images: data.image_names,
+          image: data.main_image
+        };
+        setEntries((prev) => [newEntry, ...prev]);
+      }
     } catch (e: any) {
-      console.error('Add Entry Error:', e);
+      alert(`Error: ${e.message}`);
       throw e;
     }
   };
@@ -102,23 +105,29 @@ export function useJournal() {
         date,
         tools: Array.isArray(tools) ? tools : [],
         content,
-        images: uploadedFileNames,
-        image: uploadedFileNames.length > 0 ? uploadedFileNames[0] : null,
+        image_names: uploadedFileNames,
+        main_image: uploadedFileNames.length > 0 ? uploadedFileNames[0] : null,
       };
 
       const { data, error } = await supabase
-        .from('entries')
+        .from('journal_logs')
         .update(payload)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
+      
       if (data) {
-        setEntries((prev) => prev.map((e) => (e.id === id ? data : e)));
+        const updatedEntry = {
+          ...data,
+          images: data.image_names,
+          image: data.main_image
+        };
+        setEntries((prev) => prev.map((e) => (e.id === id ? updatedEntry : e)));
       }
     } catch (e: any) {
-      console.error('Update Entry Error:', e);
+      alert(`Update Error: ${e.message}`);
       throw e;
     }
   };
@@ -126,7 +135,7 @@ export function useJournal() {
   const deleteEntry = async (id: string) => {
     if (!window.confirm('Delete this entry?')) return;
     try {
-      const { error } = await supabase.from('entries').delete().eq('id', id);
+      const { error } = await supabase.from('journal_logs').delete().eq('id', id);
       if (error) throw error;
       setEntries((prev) => prev.filter((e) => e.id !== id));
     } catch (e: any) {
