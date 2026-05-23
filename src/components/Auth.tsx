@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Mail, Lock, ArrowRight, Loader2, BadgeCheck, IdCard, Users } from 'lucide-react';
+import { BookOpen, Mail, Lock, ArrowRight, Loader2, BadgeCheck, IdCard, Users, ShieldCheck } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { showAlert } from '../utils/swal';
 
@@ -29,95 +29,146 @@ export function Auth({ onLogin }: AuthProps) {
 
     setLoading(true);
 
-    // Map employeeId to a virtual email for Supabase Auth to allow login by ID
-    const loginIdentifier = `${employeeId.trim()}@intern.system`;
+    // Create a unique internal identifier that won't trigger standard email verification rate limits as easily
+    // We use @internal.pro to distinguish it from real email providers
+    const loginIdentifier = `${employeeId.trim()}@internal.pro`;
 
     try {
       if (isLogin) {
-        // ... (login logic)
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: loginIdentifier,
+          password,
+        });
+
+        if (error) throw error;
+        
+        if (data.user) {
+          const metadata = data.user.user_metadata;
+          onLogin({
+            id: data.user.id,
+            email: metadata.email,
+            firstName: metadata.first_name,
+            lastName: metadata.last_name,
+            employee_id: metadata.employee_id,
+          });
+          showAlert.success('Access Granted', 'Welcome to your professional dashboard.');
+        }
       } else {
-        // ... (signup logic)
+        // IMPORTANT: To fix "Email rate limit exceeded" PERMANENTLY:
+        // You MUST go to Supabase Dashboard -> Auth -> Providers -> Email -> Toggle OFF "Confirm email"
+        const { data, error } = await supabase.auth.signUp({
+          email: loginIdentifier,
+          password,
+          options: {
+            data: {
+              email: email, // Real contact email stored in metadata
+              first_name: firstName,
+              last_name: lastName,
+              employee_id: employeeId,
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          showAlert.success('Account Initialized', 'Registration successful. You can now sign in.');
+          setIsLogin(true);
+        }
       }
     } catch (error: any) {
-      let errorMessage = error.message || 'กรุณาลองใหม่อีกครั้ง';
+      let errorMessage = error.message;
       
       if (errorMessage.includes('Email rate limit exceeded')) {
-        errorMessage = 'ระบบสมัครสมาชิกถูกจำกัดชั่วคราว (Rate Limit) \n\n' + 
-                       'สาเหตุ: Supabase จำกัดการส่งอีเมลยืนยันตัวตน \n' +
-                       'วิธีแก้: \n' +
-                       '1. รอประมาณ 1 ชั่วโมงแล้วลองใหม่ \n' +
-                       '2. ปิดการ "Confirm Email" ในหน้า Supabase Dashboard (Authentication > Providers > Email)';
+        errorMessage = 'SYSTEM ALERT: Email Confirmation is ACTIVE on Supabase. \n\n' + 
+                       'To fix this forever: \n' +
+                       '1. Open Supabase Dashboard \n' +
+                       '2. Go to Authentication > Providers > Email \n' +
+                       '3. Turn OFF "Confirm email" \n' +
+                       '4. Save changes.';
       }
       
-      showAlert.error('เกิดข้อผิดพลาด', errorMessage);
+      showAlert.error('Authentication Error', errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 selection:bg-blue-500/30">
-      <div className="w-full max-w-md">
-        {/* Logo Section */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-600/30 mb-6 animate-bounce-slow">
-            <BookOpen size={36} className="text-white" />
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 relative overflow-hidden font-sans">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px]" />
+      
+      <div className="w-full max-w-[440px] relative z-10">
+        {/* Header Section */}
+        <div className="flex flex-col items-center mb-10 group">
+          <div className="relative">
+            <div className="absolute inset-0 bg-blue-600 rounded-2xl blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
+            <div className="relative w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl mb-6 transform group-hover:scale-105 transition-transform duration-500">
+              <BookOpen size={40} className="text-white" />
+            </div>
           </div>
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-500">
-            Internship Journal
+          <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">
+            Journal<span className="text-blue-500">Pro</span>
           </h1>
-          <p className="text-zinc-500 mt-2 text-sm tracking-widest uppercase font-medium">Professional Logbook</p>
+          <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full">
+            <ShieldCheck size={14} className="text-emerald-500" />
+            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-bold">Enterprise Secure</span>
+          </div>
         </div>
 
-        {/* Auth Card */}
-        <div className="bg-zinc-900/50 border border-zinc-800 p-8 rounded-3xl backdrop-blur-xl shadow-2xl">
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-white mb-1">
-              {isLogin ? 'Sign In' : 'Create Account'}
+        {/* Main Auth Card */}
+        <div className="bg-zinc-900/40 border border-white/5 p-10 rounded-[2.5rem] backdrop-blur-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)]">
+          <div className="mb-10 text-center">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
-            <p className="text-zinc-400 text-sm">
-              {isLogin ? 'ยินดีต้อนรับ! กรุณากรอกรหัสพนักงาน 4 หลัก' : 'กรอกข้อมูลด้านล่างเพื่อสมัครสมาชิก'}
+            <p className="text-zinc-500 text-sm leading-relaxed">
+              {isLogin 
+                ? 'Sign in to access your professional dashboard' 
+                : 'Join our elite circle of professional interns'}
             </p>
           </div>
 
-          <form onSubmit={handleAuth} className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-6">
             {!isLogin && (
               <>
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Email Address</label>
+                <div className="space-y-2 group">
+                  <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-blue-500 transition-colors">Contact Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-blue-500 transition-colors" size={20} />
                     <input
                       type="email" required
                       value={email} onChange={(e) => setEmail(e.target.value)}
-                      placeholder="example@email.com"
-                      className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                      placeholder="name@company.com"
+                      className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all placeholder:text-zinc-700"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">ชื่อจริง</label>
+                  <div className="space-y-2 group">
+                    <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-blue-500 transition-colors">First Name</label>
                     <div className="relative">
-                      <BadgeCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                      <BadgeCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-blue-500 transition-colors" size={20} />
                       <input
                         type="text" required
                         value={firstName} onChange={(e) => setFirstName(e.target.value)}
-                        placeholder="สมชาย"
-                        className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                        placeholder="John"
+                        className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all placeholder:text-zinc-700 font-medium"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">นามสกุล</label>
+                  <div className="space-y-2 group">
+                    <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-blue-500 transition-colors">Last Name</label>
                     <div className="relative">
-                      <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                      <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-blue-500 transition-colors" size={20} />
                       <input
                         type="text" required
                         value={lastName} onChange={(e) => setLastName(e.target.value)}
-                        placeholder="ใจดี"
-                        className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                        placeholder="Doe"
+                        className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all placeholder:text-zinc-700 font-medium"
                       />
                     </div>
                   </div>
@@ -125,30 +176,30 @@ export function Auth({ onLogin }: AuthProps) {
               </>
             )}
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">รหัสพนักงาน (4 หลัก)</label>
+            <div className="space-y-2 group">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-blue-500 transition-colors">Employee ID (4 Digits)</label>
               <div className="relative">
-                <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-blue-500 transition-colors" size={20} />
                 <input
                   type="text" required
                   maxLength={4}
                   pattern="\d{4}"
                   value={employeeId} onChange={(e) => setEmployeeId(e.target.value.replace(/\D/g, ''))}
-                  placeholder="เช่น 1234"
-                  className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                  placeholder="0000"
+                  className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all placeholder:text-zinc-700 font-mono tracking-widest"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">รหัสผ่าน</label>
+            <div className="space-y-2 group">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-blue-500 transition-colors">Secure Password</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-blue-500 transition-colors" size={20} />
                 <input
                   type="password" required
                   value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                  className="w-full bg-zinc-950/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all placeholder:text-zinc-700"
                 />
               </div>
             </div>
@@ -156,35 +207,39 @@ export function Auth({ onLogin }: AuthProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
+              className="w-full relative group/btn overflow-hidden"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <>
-                  {isLogin ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
-                  <ArrowRight size={18} />
-                </>
-              )}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 group-hover/btn:scale-105 transition-transform duration-500" />
+              <div className="relative flex items-center justify-center gap-3 py-4 text-white font-bold tracking-wide transition-all active:scale-95 disabled:opacity-50">
+                {loading ? (
+                  <Loader2 className="animate-spin" size={22} />
+                ) : (
+                  <>
+                    <span className="text-base">{isLogin ? 'Sign In Now' : 'Initialize Account'}</span>
+                    <ArrowRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </div>
             </button>
           </form>
 
-          <div className="mt-8 pt-8 border-t border-zinc-800 text-center text-sm">
-            <span className="text-zinc-500">
-              {isLogin ? "ยังไม่มีบัญชี?" : "มีบัญชีอยู่แล้ว?"}
-            </span>
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="ml-2 text-blue-400 font-bold hover:text-blue-300 transition-colors"
-            >
-              {isLogin ? 'สมัครสมาชิกที่นี่' : 'เข้าสู่ระบบที่นี่'}
-            </button>
+          <div className="mt-10 pt-8 border-t border-zinc-800/50 flex flex-col items-center gap-4">
+            <p className="text-zinc-500 text-[13px]">
+              {isLogin ? "New to the platform?" : "Already have access?"}
+              <button
+                onClick={() => setIsLogin(!isLogin)}
+                className="ml-2 text-blue-500 font-bold hover:text-blue-400 transition-colors hover:underline decoration-2 underline-offset-4"
+              >
+                {isLogin ? 'Create Account' : 'Sign In'}
+              </button>
+            </p>
           </div>
         </div>
 
-        <p className="text-center text-zinc-600 text-xs mt-8">
-          © 2026 Internship Journal System. Secure Data Architecture.
-        </p>
+        {/* Footer info */}
+        <div className="mt-8 flex items-center justify-center gap-6 opacity-40 hover:opacity-100 transition-opacity duration-500">
+          <p className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-medium italic">© 2026 Journal Pro System</p>
+        </div>
       </div>
     </div>
   );
