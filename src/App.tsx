@@ -6,7 +6,7 @@ import { JournalForm } from './components/JournalForm';
 import { Filters } from './components/Filters';
 import { Auth } from './components/Auth';
 import { exportToPDF } from './utils/pdfExport';
-import { Plus, BookOpen, FileDown, LogOut, Loader2, BarChart3, Search, Languages, Menu, X, User as UserIcon, Sparkles } from 'lucide-react';
+import { Plus, BookOpen, FileDown, LogOut, Loader2, BarChart3, Search, Languages, Menu, X, Sparkles } from 'lucide-react';
 import { showAlert } from './utils/swal';
 import { useTranslation } from './utils/i18n';
 
