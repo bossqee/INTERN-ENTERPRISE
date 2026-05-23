@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Lock, ArrowRight, Loader2, BadgeCheck, IdCard, Users, Mail, Languages } from 'lucide-react';
+import { BookOpen, Lock, ArrowRight, Loader2, IdCard, Mail, Languages } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { showAlert } from '../utils/swal';
 import { useTranslation } from '../utils/i18n';
