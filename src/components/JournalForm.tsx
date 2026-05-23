@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { JournalEntry } from '../types';
-import { X, Upload, Plus, Trash2, Calendar as CalendarIcon, Type, Wrench as ToolIcon, Loader2, Eye, Edit3, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { X, Upload, Plus, Trash2, Calendar, Type, Wrench, Loader2, Eye, Edit3, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { MarkdownPreview } from './MarkdownPreview';
 import { getImageUrl } from '../utils/imageProcess';
 import { useTranslation } from '../utils/i18n';
@@ -13,7 +13,7 @@ interface JournalFormProps {
 }
 
 export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: JournalFormProps) {
-  const { t, language } = useTranslation();
+  const { language } = useTranslation();
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [tools, setTools] = useState<string[]>([]);
@@ -90,16 +90,13 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-      {/* Dynamic Backdrop */}
       <div 
         className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-500" 
         onClick={onClose} 
       />
 
-      {/* Main Professional Modal */}
       <div className="relative w-full max-w-6xl h-[85vh] bg-[#0c0c0c] border border-white/[0.08] rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-slide-up">
         
-        {/* Modal Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-10 py-6 border-b border-white/[0.05] bg-white/[0.02]">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-blue-600/10 border border-blue-500/20 rounded-xl flex items-center justify-center">
@@ -124,13 +121,10 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
           </button>
         </div>
 
-        {/* Modal Body */}
         <form onSubmit={handleSubmit} className="flex-1 flex overflow-hidden">
           
-          {/* Left Column: Metadata & Assets */}
           <div className="w-[400px] flex-shrink-0 border-r border-white/[0.05] flex flex-col bg-black/20 overflow-y-auto custom-scrollbar p-8 gap-8">
             
-            {/* Title Input */}
             <div className="space-y-3 group">
               <div className="flex items-center gap-2 ml-1 text-zinc-500 group-focus-within:text-blue-500 transition-colors">
                 <Type size={14} />
@@ -144,11 +138,10 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
               />
             </div>
 
-            {/* Date & Tools Row */}
             <div className="grid grid-cols-1 gap-8">
               <div className="space-y-3 group">
                 <div className="flex items-center gap-2 ml-1 text-zinc-500 group-focus-within:text-indigo-500 transition-colors">
-                  <CalendarIcon size={14} />
+                  <Calendar size={14} />
                   <label className="text-[10px] font-black uppercase tracking-[0.2em]">{language === 'th' ? 'วันที่ปฏิบัติงาน' : 'Timestamp'}</label>
                 </div>
                 <input
@@ -160,7 +153,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
 
               <div className="space-y-3 group">
                 <div className="flex items-center gap-2 ml-1 text-zinc-500 group-focus-within:text-emerald-500 transition-colors">
-                  <ToolIcon size={14} />
+                  <Wrench size={14} />
                   <label className="text-[10px] font-black uppercase tracking-[0.2em]">{language === 'th' ? 'เครื่องมือที่ใช้' : 'Tech Stack'}</label>
                 </div>
                 <div className="flex gap-2">
@@ -186,7 +179,6 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
               </div>
             </div>
 
-            {/* Asset Management */}
             <div className="space-y-4">
               <div className="flex items-center justify-between ml-1 text-zinc-500">
                 <div className="flex items-center gap-2">
@@ -220,16 +212,13 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
             </div>
           </div>
 
-          {/* Right Column: Markdown Editor */}
           <div className="flex-1 flex flex-col bg-[#080808] relative overflow-hidden">
-            
-            {/* Editor Toolbar */}
             <div className="flex-shrink-0 px-8 py-4 border-b border-white/[0.05] flex items-center justify-between bg-white/[0.01]">
               <div className="flex items-center gap-2 text-zinc-500">
                 <Edit3 size={14} />
                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">{language === 'th' ? 'รายละเอียดงาน' : 'Work Analysis'}</span>
               </div>
-              <div className="flex bg-zinc-950 border border-white/[0.05] rounded-xl p-1 p-1">
+              <div className="flex bg-zinc-950 border border-white/[0.05] rounded-xl p-1">
                 <button 
                   type="button" 
                   onClick={() => setIsPreview(false)}
@@ -247,7 +236,6 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
               </div>
             </div>
 
-            {/* Editor Surface */}
             <div className="flex-1 overflow-hidden p-8 relative">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 blur-[80px] pointer-events-none" />
               
@@ -264,7 +252,6 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
               )}
             </div>
 
-            {/* Action Bar */}
             <div className="flex-shrink-0 px-8 py-6 border-t border-white/[0.05] flex items-center justify-between bg-white/[0.01]">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-zinc-700 animate-pulse" />

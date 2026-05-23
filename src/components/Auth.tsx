@@ -86,7 +86,6 @@ export function Auth({ onLogin }: AuthProps) {
 
   return (
     <div className="h-screen w-screen bg-[#020202] flex items-center justify-center p-4 relative overflow-hidden font-sans perspective-1000">
-      {/* Language Toggle - Top Right */}
       <button 
         onClick={toggleLanguage}
         className="absolute top-6 right-6 z-50 flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[11px] font-bold text-zinc-400 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md uppercase tracking-widest"
@@ -95,12 +94,10 @@ export function Auth({ onLogin }: AuthProps) {
         {language === 'th' ? 'English' : 'ไทย'}
       </button>
 
-      {/* Background Glows */}
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[120px] animate-glow" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-600/10 rounded-full blur-[120px] animate-glow" style={{ animationDelay: '2s' }} />
       
       <div className="w-full max-w-[400px] relative z-10 animate-slide-up flex flex-col items-center">
-        {/* Compact Header */}
         <div className="flex flex-col items-center mb-6 group cursor-default scale-90">
           <div className="relative mb-3">
             <div className="absolute inset-0 bg-blue-600 rounded-[1.5rem] blur-xl opacity-20 group-hover:opacity-40 transition-all duration-700" />
@@ -113,7 +110,6 @@ export function Auth({ onLogin }: AuthProps) {
           </h1>
         </div>
 
-        {/* Tight Glass Card */}
         <div className="glass-card w-full p-8 rounded-[2.5rem] border-t border-white/10 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
           
