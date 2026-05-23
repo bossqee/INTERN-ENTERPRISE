@@ -1,17 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useJournal } from './hooks/useJournal';
-import type { JournalEntry, FilterState } from './types';
+import type { JournalEntry, FilterState, User as AppUser } from './types';
 import { JournalCard } from './components/JournalCard';
 import { JournalForm } from './components/JournalForm';
 import { Filters } from './components/Filters';
 import { Auth } from './components/Auth';
 import { exportToPDF } from './utils/pdfExport';
-import { Plus, BookOpen, FileDown, LogOut, User as UserIcon } from 'lucide-react';
+import { Plus, BookOpen, FileDown, LogOut } from 'lucide-react';
 import { showAlert } from './utils/swal';
+import { supabase } from './utils/supabase';
 
 function App() {
-  const { entries, loading, addEntry, updateEntry, deleteEntry } = useJournal();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const { entries, loading, addEntry, updateEntry, deleteEntry } = useJournal(user?.id);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [filters, setFilters] = useState<FilterState>({
@@ -20,6 +21,40 @@ function App() {
     startDate: '',
     endDate: '',
   });
+
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const metadata = session.user.user_metadata;
+        setUser({
+          id: session.user.id,
+          accountName: metadata.account_name,
+          firstName: metadata.first_name,
+          lastName: metadata.last_name,
+          employeeId: metadata.employee_id,
+        });
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const metadata = session.user.user_metadata;
+        setUser({
+          id: session.user.id,
+          accountName: metadata.account_name,
+          firstName: metadata.first_name,
+          lastName: metadata.last_name,
+          employeeId: metadata.employee_id,
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const availableTools = useMemo(() => {
     const tools = new Set<string>();
@@ -63,8 +98,9 @@ function App() {
   };
 
   const handleLogout = async () => {
-    const confirmed = await showAlert.confirm('Logout?', 'Are you sure you want to end your session?');
+    const confirmed = await showAlert.confirm('ออกจากระบบ?', 'คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?');
     if (confirmed) {
+      await supabase.auth.signOut();
       setUser(null);
     }
   };
@@ -86,7 +122,9 @@ function App() {
               <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
                 Internship Journal
               </h1>
-              <p className="text-xs text-zinc-500 font-medium tracking-wider uppercase">Welcome, {user.name}</p>
+              <p className="text-xs text-zinc-500 font-medium tracking-wider uppercase">
+                Welcome, {user.firstName} {user.lastName} ({user.accountName})
+              </p>
             </div>
           </div>
 

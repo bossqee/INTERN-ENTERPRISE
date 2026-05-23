@@ -14,3 +14,11 @@ export interface FilterState {
   startDate: string;
   endDate: string;
 }
+
+export interface User {
+  id: string;
+  accountName: string;
+  firstName: string;
+  lastName: string;
+  employeeId: string;
+}

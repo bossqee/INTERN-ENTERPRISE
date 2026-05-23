@@ -4,16 +4,18 @@ import { supabase } from '../utils/supabase';
 import { compressImage, uploadImage } from '../utils/imageProcess';
 import { showAlert } from '../utils/swal';
 
-export function useJournal() {
+export function useJournal(userId: string | undefined) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchEntries = async () => {
+    if (!userId) return;
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('journal_logs')
         .select('*')
+        .eq('user_id', userId) // Filter by user_id
         .order('date', { ascending: false });
 
       if (error) throw error;
@@ -34,7 +36,7 @@ export function useJournal() {
 
   useEffect(() => {
     fetchEntries();
-  }, []);
+  }, [userId]);
 
   const processImages = async (imageObjects: { url: string; file?: File; dbName?: string }[]) => {
     const results: string[] = [];
@@ -55,11 +57,13 @@ export function useJournal() {
   };
 
   const addEntry = async (entryData: any) => {
+    if (!userId) return;
     try {
       const { title, date, tools, content, imageObjects } = entryData;
       const uploadedFileNames = await processImages(imageObjects);
       
       const payload = {
+        user_id: userId, // Associate with user
         title,
         date,
         tools: Array.isArray(tools) ? tools : [],

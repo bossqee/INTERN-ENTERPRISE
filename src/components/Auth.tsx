@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BookOpen, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { BookOpen, User, Lock, ArrowRight, Loader2, BadgeCheck, IdCard, Users } from 'lucide-react';
+import { supabase } from '../utils/supabase';
 import { showAlert } from '../utils/swal';
 
 interface AuthProps {
@@ -9,24 +10,67 @@ interface AuthProps {
 export function Auth({ onLogin }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
+  
+  // Registration fields
+  const [accountName, setAccountName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Mocking a delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setLoading(false);
-    showAlert.success(
-      isLogin ? 'Welcome Back!' : 'Account Created!',
-      isLogin ? 'Successfully logged into your journal.' : 'You can now start logging your internship.'
-    );
-    
-    onLogin({ name: name || 'Intern Student', email });
+
+    // Map employeeId to a virtual email for Supabase Auth
+    const email = `${employeeId.trim()}@intern.system`;
+
+    try {
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+        
+        if (data.user) {
+          const metadata = data.user.user_metadata;
+          onLogin({
+            id: data.user.id,
+            accountName: metadata.account_name,
+            firstName: metadata.first_name,
+            lastName: metadata.last_name,
+            employeeId: metadata.employee_id,
+          });
+          showAlert.success('ยินดีต้อนรับกลับ!', 'เข้าสู่ระบบสำเร็จ');
+        }
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              account_name: accountName,
+              first_name: firstName,
+              last_name: lastName,
+              employee_id: employeeId,
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          showAlert.success('ลงทะเบียนสำเร็จ!', 'คุณสามารถเข้าสู่ระบบได้แล้ว');
+          setIsLogin(true);
+        }
+      }
+    } catch (error: any) {
+      showAlert.error('เกิดข้อผิดพลาด', error.message || 'กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,48 +94,77 @@ export function Auth({ onLogin }: AuthProps) {
               {isLogin ? 'Sign In' : 'Create Account'}
             </h2>
             <p className="text-zinc-400 text-sm">
-              {isLogin ? 'Welcome back! Please enter your details.' : 'Join us to track your professional growth.'}
+              {isLogin ? 'ยินดีต้อนรับ! กรุณากรอกรหัสพนักงานและรหัสผ่าน' : 'กรอกข้อมูลด้านล่างเพื่อสมัครสมาชิก'}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleAuth} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-                  <input
-                    type="text" required
-                    value={name} onChange={(e) => setName(e.target.value)}
-                    placeholder="John Doe"
-                    className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
-                  />
+              <>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Account Name</label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                    <input
+                      type="text" required
+                      value={accountName} onChange={(e) => setAccountName(e.target.value)}
+                      placeholder="เช่น intern_01"
+                      className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                    />
+                  </div>
                 </div>
-              </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">ชื่อจริง</label>
+                    <div className="relative">
+                      <BadgeCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                      <input
+                        type="text" required
+                        value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="สมชาย"
+                        className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">นามสกุล</label>
+                    <div className="relative">
+                      <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                      <input
+                        type="text" required
+                        value={lastName} onChange={(e) => setLastName(e.target.value)}
+                        placeholder="ใจดี"
+                        className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Email Address</label>
+              <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">รหัสพนักงาน</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
                 <input
-                  type="email" required
-                  value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="intern@company.com"
-                  className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                  type="text" required
+                  value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}
+                  placeholder="EMP12345"
+                  className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Password</label>
+              <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">รหัสผ่าน</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
                 <input
                   type="password" required
                   value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
+                  className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
                 />
               </div>
             </div>
@@ -105,7 +178,7 @@ export function Auth({ onLogin }: AuthProps) {
                 <Loader2 className="animate-spin" size={20} />
               ) : (
                 <>
-                  {isLogin ? 'Sign In' : 'Get Started'}
+                  {isLogin ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
                   <ArrowRight size={18} />
                 </>
               )}
@@ -114,13 +187,13 @@ export function Auth({ onLogin }: AuthProps) {
 
           <div className="mt-8 pt-8 border-t border-zinc-800 text-center text-sm">
             <span className="text-zinc-500">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}
+              {isLogin ? "ยังไม่มีบัญชี?" : "มีบัญชีอยู่แล้ว?"}
             </span>
             <button
               onClick={() => setIsLogin(!isLogin)}
               className="ml-2 text-blue-400 font-bold hover:text-blue-300 transition-colors"
             >
-              {isLogin ? 'Sign Up' : 'Sign In'}
+              {isLogin ? 'สมัครสมาชิกที่นี่' : 'เข้าสู่ระบบที่นี่'}
             </button>
           </div>
         </div>
