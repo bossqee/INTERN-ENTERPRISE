@@ -98,14 +98,9 @@ function App() {
       
       {/* LUXURY DECORATIONS */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        {/* Animated Grid Mesh */}
         <div className="absolute inset-0 grid-mesh animate-mesh" />
-        
-        {/* Dynamic Glows */}
         <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] animate-glow" />
         <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] animate-glow" style={{ animationDelay: '3s' }} />
-        
-        {/* Floating Glass Orbs */}
         <div className="absolute top-[20%] left-[10%] w-32 h-32 bg-white/[0.01] border border-white/5 rounded-full backdrop-blur-3xl animate-float opacity-30" />
         <div className="absolute bottom-[30%] right-[15%] w-24 h-24 bg-blue-500/[0.02] border border-blue-500/10 rounded-full backdrop-blur-2xl animate-float opacity-20" style={{ animationDelay: '2s' }} />
       </div>
@@ -125,7 +120,7 @@ function App() {
             <div className="flex items-center gap-3 sm:gap-4 cursor-default">
               <div className="relative">
                 <div className="absolute inset-0 bg-blue-600 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
-                <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl transition-transform group-hover:rotate-12 duration-500">
+                <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl transition-transform group-hover:rotate-12 duration-500">
                   <BookOpen size={22} className="text-white" />
                 </div>
               </div>
@@ -184,10 +179,7 @@ function App() {
         </div>
       </header>
 
-      {/* DASHBOARD BODY */}
       <div className="flex-1 min-h-0 flex relative overflow-hidden max-w-[1600px] mx-auto w-full px-4 sm:px-8 gap-8 py-6 sm:py-10 z-10">
-        
-        {/* Sidebar */}
         <aside className={`
           fixed lg:relative inset-y-0 left-0 z-[60] w-[320px] bg-[#050505]/95 lg:bg-transparent backdrop-blur-2xl lg:backdrop-blur-0
           transform transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1)
@@ -232,12 +224,10 @@ function App() {
           </div>
         </aside>
 
-        {/* Backdrop overlay */}
         {isMobileMenuOpen && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 lg:hidden animate-in fade-in duration-500" onClick={() => setIsMobileMenuOpen(false)} />
         )}
 
-        {/* Main Feed */}
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <div className="flex items-end justify-between mb-8 sm:mb-10 flex-shrink-0 px-2">
             <div className="animate-slide-up">
@@ -251,7 +241,6 @@ function App() {
             </div>
           </div>
 
-          {/* Feed Scroll Zone */}
           <div className="flex-1 overflow-y-auto pr-2 sm:pr-6 custom-scrollbar min-h-0 relative z-20">
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center glass-card rounded-[4rem] p-12">
