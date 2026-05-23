@@ -17,7 +17,7 @@ export interface FilterState {
 
 export interface User {
   id: string;
-  accountName: string;
+  email: string;
   firstName: string;
   lastName: string;
   employeeId: string;

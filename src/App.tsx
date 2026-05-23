@@ -29,7 +29,7 @@ function App() {
         const metadata = session.user.user_metadata;
         setUser({
           id: session.user.id,
-          accountName: metadata.account_name,
+          email: metadata.email,
           firstName: metadata.first_name,
           lastName: metadata.last_name,
           employeeId: metadata.employee_id,
@@ -43,7 +43,7 @@ function App() {
         const metadata = session.user.user_metadata;
         setUser({
           id: session.user.id,
-          accountName: metadata.account_name,
+          email: metadata.email,
           firstName: metadata.first_name,
           lastName: metadata.last_name,
           employeeId: metadata.employee_id,
@@ -123,7 +123,7 @@ function App() {
                 Internship Journal
               </h1>
               <p className="text-xs text-zinc-500 font-medium tracking-wider uppercase">
-                Welcome, {user.firstName} {user.lastName} ({user.accountName})
+                Welcome, {user.firstName} {user.lastName}
               </p>
             </div>
           </div>

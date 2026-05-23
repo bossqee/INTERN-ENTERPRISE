@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, User, Lock, ArrowRight, Loader2, BadgeCheck, IdCard, Users } from 'lucide-react';
+import { BookOpen, Mail, Lock, ArrowRight, Loader2, BadgeCheck, IdCard, Users } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { showAlert } from '../utils/swal';
 
@@ -12,7 +12,7 @@ export function Auth({ onLogin }: AuthProps) {
   const [loading, setLoading] = useState(false);
   
   // Registration fields
-  const [accountName, setAccountName] = useState('');
+  const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [employeeId, setEmployeeId] = useState('');
@@ -20,15 +20,22 @@ export function Auth({ onLogin }: AuthProps) {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate 4-digit Employee ID
+    if (!/^\d{4}$/.test(employeeId)) {
+      showAlert.error('ข้อมูลไม่ถูกต้อง', 'รหัสพนักงานต้องเป็นตัวเลข 4 หลักเท่านั้น');
+      return;
+    }
+
     setLoading(true);
 
-    // Map employeeId to a virtual email for Supabase Auth
-    const email = `${employeeId.trim()}@intern.system`;
+    // Map employeeId to a virtual email for Supabase Auth to allow login by ID
+    const loginIdentifier = `${employeeId.trim()}@intern.system`;
 
     try {
       if (isLogin) {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: loginIdentifier,
           password,
         });
 
@@ -38,7 +45,7 @@ export function Auth({ onLogin }: AuthProps) {
           const metadata = data.user.user_metadata;
           onLogin({
             id: data.user.id,
-            accountName: metadata.account_name,
+            email: metadata.email,
             firstName: metadata.first_name,
             lastName: metadata.last_name,
             employeeId: metadata.employee_id,
@@ -47,11 +54,11 @@ export function Auth({ onLogin }: AuthProps) {
         }
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: loginIdentifier,
           password,
           options: {
             data: {
-              account_name: accountName,
+              email: email, // Real email
               first_name: firstName,
               last_name: lastName,
               employee_id: employeeId,
@@ -62,7 +69,7 @@ export function Auth({ onLogin }: AuthProps) {
         if (error) throw error;
 
         if (data.user) {
-          showAlert.success('ลงทะเบียนสำเร็จ!', 'คุณสามารถเข้าสู่ระบบได้แล้ว');
+          showAlert.success('ลงทะเบียนสำเร็จ!', 'คุณสามารถเข้าสู่ระบบด้วยรหัสพนักงานได้แล้ว');
           setIsLogin(true);
         }
       }
@@ -94,7 +101,7 @@ export function Auth({ onLogin }: AuthProps) {
               {isLogin ? 'Sign In' : 'Create Account'}
             </h2>
             <p className="text-zinc-400 text-sm">
-              {isLogin ? 'ยินดีต้อนรับ! กรุณากรอกรหัสพนักงานและรหัสผ่าน' : 'กรอกข้อมูลด้านล่างเพื่อสมัครสมาชิก'}
+              {isLogin ? 'ยินดีต้อนรับ! กรุณากรอกรหัสพนักงาน 4 หลัก' : 'กรอกข้อมูลด้านล่างเพื่อสมัครสมาชิก'}
             </p>
           </div>
 
@@ -102,13 +109,13 @@ export function Auth({ onLogin }: AuthProps) {
             {!isLogin && (
               <>
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Account Name</label>
+                  <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">Email Address</label>
                   <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
                     <input
-                      type="text" required
-                      value={accountName} onChange={(e) => setAccountName(e.target.value)}
-                      placeholder="เช่น intern_01"
+                      type="email" required
+                      value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="example@email.com"
                       className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
                     />
                   </div>
@@ -144,13 +151,15 @@ export function Auth({ onLogin }: AuthProps) {
             )}
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">รหัสพนักงาน</label>
+              <label className="text-xs font-semibold text-zinc-500 uppercase ml-1">รหัสพนักงาน (4 หลัก)</label>
               <div className="relative">
                 <IdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
                 <input
                   type="text" required
-                  value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}
-                  placeholder="EMP12345"
+                  maxLength={4}
+                  pattern="\d{4}"
+                  value={employeeId} onChange={(e) => setEmployeeId(e.target.value.replace(/\D/g, ''))}
+                  placeholder="เช่น 1234"
                   className="w-full bg-black/50 border border-zinc-800 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-zinc-700"
                 />
               </div>
