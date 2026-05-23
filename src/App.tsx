@@ -6,11 +6,12 @@ import { JournalForm } from './components/JournalForm';
 import { Filters } from './components/Filters';
 import { Auth } from './components/Auth';
 import { exportToPDF } from './utils/pdfExport';
-import { Plus, BookOpen, FileDown, LogOut } from 'lucide-react';
+import { Plus, BookOpen, FileDown, LogOut, Loader2, BarChart3, Search, Languages } from 'lucide-react';
 import { showAlert } from './utils/swal';
-import { supabase } from './utils/supabase';
+import { useTranslation } from './utils/i18n';
 
 function App() {
+  const { t, language, setLanguage } = useTranslation();
   const [user, setUser] = useState<AppUser | null>(null);
   const { entries, loading, addEntry, updateEntry, deleteEntry } = useJournal(user?.id);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -23,38 +24,20 @@ function App() {
   });
 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const metadata = session.user.user_metadata;
-        setUser({
-          id: session.user.id,
-          email: metadata.email,
-          firstName: metadata.first_name,
-          lastName: metadata.last_name,
-          employeeId: metadata.employee_id,
-        });
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const metadata = session.user.user_metadata;
-        setUser({
-          id: session.user.id,
-          email: metadata.email,
-          firstName: metadata.first_name,
-          lastName: metadata.last_name,
-          employeeId: metadata.employee_id,
-        });
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    const savedUser = localStorage.getItem('journal_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
   }, []);
+
+  const handleLoginSuccess = (userData: AppUser) => {
+    setUser(userData);
+    localStorage.setItem('journal_user', JSON.stringify(userData));
+  };
+
+  const toggleLanguage = () => {
+    setLanguage(language === 'th' ? 'en' : 'th');
+  };
 
   const availableTools = useMemo(() => {
     const tools = new Set<string>();
@@ -98,55 +81,68 @@ function App() {
   };
 
   const handleLogout = async () => {
-    const confirmed = await showAlert.confirm('ออกจากระบบ?', 'คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?');
+    const confirmed = await showAlert.confirm(t('logoutConfirm'), t('logoutMessage'));
     if (confirmed) {
-      await supabase.auth.signOut();
+      localStorage.removeItem('journal_user');
       setUser(null);
     }
   };
 
   if (!user) {
-    return <Auth onLogin={setUser} />;
+    return <Auth onLogin={handleLoginSuccess} />;
   }
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 selection:bg-blue-500/30">
+    <div className="fixed inset-0 w-screen h-screen bg-[#050505] text-zinc-100 flex flex-col overflow-hidden font-sans selection:bg-blue-500/30">
+      {/* Background Glows */}
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
+
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="h-16 flex-shrink-0 bg-zinc-950/70 backdrop-blur-3xl border-b border-white/[0.05] z-50">
+        <div className="max-w-[1600px] mx-auto h-full px-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-              <BookOpen size={24} className="text-white" />
+              <BookOpen size={22} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
-                Internship Journal
+              <h1 className="text-lg font-black tracking-tight text-white leading-none mb-1">
+                Journal<span className="text-blue-500">Pro</span>
               </h1>
-              <p className="text-xs text-zinc-500 font-medium tracking-wider uppercase">
-                Welcome, {user.firstName} {user.lastName}
-              </p>
+              <span className="text-[9px] text-zinc-500 font-bold tracking-widest uppercase bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
+                {user.firstName} {user.lastName}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={toggleLanguage}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-zinc-400 hover:text-white transition-all uppercase tracking-widest"
+            >
+              <Languages size={14} className="text-blue-500" />
+              {language === 'th' ? 'EN' : 'TH'}
+            </button>
+            <div className="w-px h-6 bg-white/10 mx-1" />
             <button
               onClick={handleGlobalExport}
-              className="hidden sm:flex items-center gap-2 px-4 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-all border border-transparent hover:border-zinc-700"
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all border border-white/5"
             >
-              <FileDown size={18} />
-              <span className="text-sm font-medium">Export All</span>
+              <FileDown size={16} />
+              <span className="text-[11px] font-black uppercase tracking-wider">{t('export')}</span>
             </button>
             <button
               onClick={handleAddNew}
-              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all shadow-lg shadow-blue-600/20 font-semibold active:scale-[0.98]"
+              className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all shadow-lg shadow-blue-600/20 font-black active:scale-[0.98]"
             >
-              <Plus size={20} />
-              <span className="hidden sm:inline">New Entry</span>
+              <Plus size={18} />
+              <span className="text-[11px] font-black uppercase tracking-wider">{t('createLog')}</span>
             </button>
+            <div className="w-px h-6 bg-white/10 mx-1" />
             <button
               onClick={handleLogout}
-              className="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-              title="Logout"
+              className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+              title={t('logout')}
             >
               <LogOut size={20} />
             </button>
@@ -154,101 +150,90 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          {/* Sidebar Filters */}
-          <aside className="lg:col-span-4 space-y-6">
-            <div className="sticky top-28">
-              <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-widest mb-4">Filters</h2>
+      {/* Main Body */}
+      <div className="flex-1 min-h-0 flex overflow-hidden max-w-[1600px] mx-auto w-full px-6 gap-6 py-6 z-10">
+        <aside className="w-72 flex-shrink-0 flex flex-col gap-5 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col glass-card rounded-[2.5rem] border border-white/[0.05] overflow-hidden">
+            <div className="p-5 border-b border-white/[0.05] bg-white/[0.02] flex items-center gap-3 flex-shrink-0">
+              <Search size={16} className="text-blue-500" />
+              <h2 className="text-[11px] font-black text-zinc-300 uppercase tracking-[0.2em]">{t('filterSystem')}</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
               <Filters
                 filters={filters}
                 setFilters={setFilters}
                 availableTools={availableTools}
               />
-              
-              <div className="mt-8 p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
-                <h3 className="text-sm font-semibold text-zinc-300 mb-2">Statistics</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-zinc-500">Total Logs</span>
-                    <span className="text-zinc-100 font-mono">{entries.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-zinc-500">Filtered</span>
-                    <span className="text-zinc-100 font-mono">{filteredEntries.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-zinc-500">Tech Stack</span>
-                    <span className="text-zinc-100 font-mono">{availableTools.length} tools</span>
-                  </div>
-                </div>
+            </div>
+          </div>
+
+          <div className="glass-card rounded-[2.5rem] p-5 border border-white/[0.05] flex-shrink-0">
+            <div className="flex items-center gap-3 mb-4">
+              <BarChart3 size={16} className="text-indigo-500" />
+              <h3 className="text-[11px] font-black text-zinc-300 uppercase tracking-[0.2em]">{t('insights')}</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-zinc-950 p-4 rounded-2xl border border-white/[0.03] text-center">
+                <p className="text-[9px] font-black text-zinc-600 uppercase mb-1">{t('records')}</p>
+                <p className="text-2xl font-black text-white">{entries.length}</p>
+              </div>
+              <div className="bg-zinc-950 p-4 rounded-2xl border border-white/[0.03] text-center">
+                <p className="text-[9px] font-black text-zinc-600 uppercase mb-1">{t('stack')}</p>
+                <p className="text-2xl font-black text-white">{availableTools.length}</p>
               </div>
             </div>
-          </aside>
+          </div>
+        </aside>
 
-          {/* Timeline / List */}
-          <div className="lg:col-span-8 space-y-8">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-2xl font-bold text-zinc-100">Journal Feed</h2>
-              <div className="text-sm text-zinc-500">
-                {loading ? 'Loading...' : `Showing ${filteredEntries.length} entries`}
+        <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex items-end justify-between mb-5 flex-shrink-0">
+            <div>
+              <h2 className="text-4xl font-black text-white tracking-tighter">{t('timeline')}</h2>
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                  {t('liveSync')}: {filteredEntries.length} {t('entriesActive')}
+                </p>
               </div>
             </div>
+          </div>
 
+          <div className="flex-1 overflow-y-auto pr-3 custom-scrollbar min-h-0">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-32 bg-zinc-900/30 border border-zinc-800 rounded-3xl animate-pulse">
-                <p className="text-zinc-500 font-medium">Fetching your journal...</p>
+              <div className="h-full flex flex-col items-center justify-center glass-card rounded-[3rem]">
+                <Loader2 className="animate-spin text-blue-500 mb-4" size={32} />
+                <p className="text-[10px] text-zinc-500 font-bold tracking-[0.3em] uppercase animate-pulse">{t('decrypting')}</p>
               </div>
             ) : filteredEntries.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-6 pb-10">
                 {filteredEntries.map((entry) => (
-                  <JournalCard
-                    key={entry.id}
-                    entry={entry}
-                    onEdit={handleEdit}
-                    onDelete={deleteEntry}
-                    onExport={exportToPDF}
-                  />
+                  <div key={entry.id} className="animate-slide-up">
+                    <JournalCard
+                      entry={entry}
+                      onEdit={handleEdit}
+                      onDelete={deleteEntry}
+                      onExport={exportToPDF}
+                    />
+                  </div>
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-32 bg-zinc-900/30 border border-dashed border-zinc-800 rounded-3xl">
-                <BookOpen size={48} className="text-zinc-700 mb-4" />
-                <p className="text-zinc-400 font-medium">No journal entries found</p>
-                <p className="text-zinc-600 text-sm mt-1">Try adjusting your filters or create a new log.</p>
+              <div className="h-full flex flex-col items-center justify-center glass-card rounded-[3rem] border border-dashed border-white/10">
+                <BookOpen size={32} className="text-zinc-800 mb-4" />
+                <h3 className="text-white font-bold text-xl tracking-tight">{t('noResults')}</h3>
+                <p className="text-zinc-600 text-sm mt-1">{t('refineSearch')}</p>
                 <button
                   onClick={handleAddNew}
-                  className="mt-6 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-xl transition-colors text-sm font-medium"
+                  className="mt-8 px-8 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl transition-all font-bold text-xs uppercase tracking-widest border border-white/5"
                 >
-                  Create your first entry
+                  {t('createInitial')}
                 </button>
               </div>
             )}
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
 
-      <footer className="border-t border-zinc-800 py-12 mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center border border-zinc-800">
-              <BookOpen size={16} className="text-zinc-400" />
-            </div>
-            <span className="text-zinc-500 text-sm">© 2026 Internship Journal System</span>
-          </div>
-          
-          <div className="flex items-center gap-8 text-sm text-zinc-500">
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Documentation</a>
-            <a href="https://github.com" className="flex items-center gap-2 hover:text-white transition-colors">
-              <BookOpen size={16} />
-              GitHub
-            </a>
-          </div>
-        </div>
-      </footer>
-
-      {/* Modal Form */}
       {isFormOpen && (
         <JournalForm
           initialEntry={editingEntry}
