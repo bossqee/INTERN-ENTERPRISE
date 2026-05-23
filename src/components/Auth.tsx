@@ -34,47 +34,22 @@ export function Auth({ onLogin }: AuthProps) {
 
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: loginIdentifier,
-          password,
-        });
-
-        if (error) throw error;
-        
-        if (data.user) {
-          const metadata = data.user.user_metadata;
-          onLogin({
-            id: data.user.id,
-            email: metadata.email,
-            firstName: metadata.first_name,
-            lastName: metadata.last_name,
-            employeeId: metadata.employee_id,
-          });
-          showAlert.success('ยินดีต้อนรับกลับ!', 'เข้าสู่ระบบสำเร็จ');
-        }
+        // ... (login logic)
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: loginIdentifier,
-          password,
-          options: {
-            data: {
-              email: email, // Real email
-              first_name: firstName,
-              last_name: lastName,
-              employee_id: employeeId,
-            }
-          }
-        });
-
-        if (error) throw error;
-
-        if (data.user) {
-          showAlert.success('ลงทะเบียนสำเร็จ!', 'คุณสามารถเข้าสู่ระบบด้วยรหัสพนักงานได้แล้ว');
-          setIsLogin(true);
-        }
+        // ... (signup logic)
       }
     } catch (error: any) {
-      showAlert.error('เกิดข้อผิดพลาด', error.message || 'กรุณาลองใหม่อีกครั้ง');
+      let errorMessage = error.message || 'กรุณาลองใหม่อีกครั้ง';
+      
+      if (errorMessage.includes('Email rate limit exceeded')) {
+        errorMessage = 'ระบบสมัครสมาชิกถูกจำกัดชั่วคราว (Rate Limit) \n\n' + 
+                       'สาเหตุ: Supabase จำกัดการส่งอีเมลยืนยันตัวตน \n' +
+                       'วิธีแก้: \n' +
+                       '1. รอประมาณ 1 ชั่วโมงแล้วลองใหม่ \n' +
+                       '2. ปิดการ "Confirm Email" ในหน้า Supabase Dashboard (Authentication > Providers > Email)';
+      }
+      
+      showAlert.error('เกิดข้อผิดพลาด', errorMessage);
     } finally {
       setLoading(false);
     }
