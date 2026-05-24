@@ -1,5 +1,6 @@
-import { Search, Filter, Calendar, X, Hash } from 'lucide-react';
+import { Search, Filter, Calendar, X, Hash, RotateCcw } from 'lucide-react';
 import type { FilterState } from '../types';
+import { useTranslation } from '../utils/i18n';
 
 interface FiltersProps {
   filters: FilterState;
@@ -8,6 +9,8 @@ interface FiltersProps {
 }
 
 export function Filters({ filters, setFilters, availableTools }: FiltersProps) {
+  const { t } = useTranslation();
+
   const resetFilters = () => {
     setFilters({
       search: '',
@@ -20,65 +23,70 @@ export function Filters({ filters, setFilters, availableTools }: FiltersProps) {
   const hasActiveFilters = filters.search || filters.tool || filters.startDate || filters.endDate;
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-full overflow-x-hidden">
-      {/* Search Input - Elite Minimalist */}
-      <div className="space-y-2 group">
-        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-1 group-focus-within:text-blue-500 transition-colors">Keywords</label>
+    <div className="flex flex-col gap-6 w-full">
+      {/* Search Input */}
+      <div className="space-y-2.5 group">
+        <div className="flex items-center gap-2 ml-1 text-zinc-500 group-focus-within:text-blue-500 transition-colors">
+          <Search size={14} />
+          <label className="text-[10px] font-black uppercase tracking-[0.2em]">{t('keywords')}</label>
+        </div>
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-blue-500 transition-colors" size={14} />
           <input
             type="text"
             value={filters.search}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-            placeholder="Title, Content..."
-            className="w-full bg-zinc-950/50 border border-white/[0.05] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-zinc-800 focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-500/30 transition-all"
+            placeholder="Search keywords..."
+            className="w-full bg-zinc-950 border border-white/[0.08] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-zinc-800 focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500/40 transition-all font-medium"
           />
         </div>
       </div>
 
-      {/* Tool Selector - Ultra Compact Grid */}
-      <div className="space-y-2 group">
-        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-1 group-focus-within:text-blue-500 transition-colors">Technology</label>
+      {/* Tool Selector */}
+      <div className="space-y-2.5 group">
+        <div className="flex items-center gap-2 ml-1 text-zinc-500 group-focus-within:text-indigo-500 transition-colors">
+          <Hash size={14} />
+          <label className="text-[10px] font-black uppercase tracking-[0.2em]">{t('technology')}</label>
+        </div>
         <div className="relative">
-          <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-blue-500 transition-colors" size={14} />
           <select
             value={filters.tool}
             onChange={(e) => setFilters({ ...filters, tool: e.target.value })}
-            className="w-full bg-zinc-950/50 border border-white/[0.05] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-500/30 transition-all appearance-none cursor-pointer"
+            className="w-full bg-zinc-950 border border-white/[0.08] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500/40 transition-all appearance-none cursor-pointer font-medium"
           >
-            <option value="" className="bg-zinc-900">All Technologies</option>
+            <option value="" className="bg-zinc-900">{t('allTech')}</option>
             {availableTools.map((tool) => (
               <option key={tool} value={tool} className="bg-zinc-900">
                 {tool}
               </option>
             ))}
           </select>
-          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
-            <Filter size={10} className="text-white" />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-600">
+            <Filter size={14} />
           </div>
         </div>
       </div>
 
-      {/* Date Range - Precision Vertical Layout */}
+      {/* Date Range */}
       <div className="space-y-3">
-        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-1">Timeline Range</label>
-        <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 ml-1 text-zinc-500">
+          <Calendar size={14} />
+          <label className="text-[10px] font-black uppercase tracking-[0.2em]">{t('timelineRange')}</label>
+        </div>
+        <div className="grid grid-cols-1 gap-2">
           <div className="relative group">
-            <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-blue-500 transition-colors" size={14} />
             <input
               type="date"
               value={filters.startDate}
               onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-              className="w-full bg-zinc-950/50 border border-white/[0.05] rounded-xl pl-10 pr-4 py-2.5 text-[11px] text-white focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-500/30 transition-all [color-scheme:dark]"
+              className="w-full bg-zinc-950 border border-white/[0.08] rounded-xl px-4 py-2.5 text-[11px] text-white focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500/40 transition-all [color-scheme:dark] font-medium"
             />
           </div>
           <div className="relative group">
-            <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-blue-500 transition-colors" size={14} />
             <input
               type="date"
               value={filters.endDate}
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-              className="w-full bg-zinc-950/50 border border-white/[0.05] rounded-xl pl-10 pr-4 py-2.5 text-[11px] text-white focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-500/30 transition-all [color-scheme:dark]"
+              className="w-full bg-zinc-950 border border-white/[0.08] rounded-xl px-4 py-2.5 text-[11px] text-white focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500/40 transition-all [color-scheme:dark] font-medium"
             />
           </div>
         </div>
@@ -88,10 +96,10 @@ export function Filters({ filters, setFilters, availableTools }: FiltersProps) {
       {hasActiveFilters && (
         <button
           onClick={resetFilters}
-          className="flex items-center justify-center gap-2 py-3 mt-2 rounded-xl bg-white/[0.02] hover:bg-red-500/10 text-zinc-500 hover:text-red-400 border border-white/[0.05] hover:border-red-500/20 transition-all duration-300 group"
+          className="flex items-center justify-center gap-2 py-3 mt-1 rounded-xl bg-white/[0.03] hover:bg-red-500/10 text-zinc-500 hover:text-red-400 border border-white/[0.08] hover:border-red-500/30 transition-all duration-300 group"
         >
-          <X size={12} className="group-hover:rotate-90 transition-transform duration-300" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Clear All Parameters</span>
+          <RotateCcw size={14} className="group-hover:-rotate-90 transition-transform duration-500" />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t('clearFilters')}</span>
         </button>
       )}
     </div>

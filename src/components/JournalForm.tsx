@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import type { JournalEntry } from '../types';
-import { X, Upload, Plus, Trash2, Calendar, Type, Wrench, Loader2, Eye, Edit3, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { X, Upload, Plus, Trash2, Calendar, Type, Wrench, Loader2, Eye, Edit3, Image as ImageIcon, Sparkles, BrainCircuit, Wand2 } from 'lucide-react';
 import { MarkdownPreview } from './MarkdownPreview';
 import { getImageUrl } from '../utils/imageProcess';
 import { useTranslation } from '../utils/i18n';
+import { askAI, AI_PROMPTS } from '../utils/ai';
+import { showAlert } from '../utils/swal';
 
 interface JournalFormProps {
   initialEntry?: JournalEntry | null;
@@ -22,6 +24,7 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
   const [imageObjects, setImageObjects] = useState<{ url: string; file?: File; dbName?: string }[]>([]);
   const [isPreview, setIsPreview] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   useEffect(() => {
     if (initialEntry) {
@@ -85,6 +88,42 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
       console.error(error);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleAiAction = async (action: 'SUMMARIZE' | 'SUGGEST_TOOLS' | 'IMPROVE_WRITING') => {
+    if (!content.trim()) {
+      showAlert.error('AI Assistant', language === 'th' ? 'กรุณาใส่เนื้อหาก่อนใช้งาน AI' : 'Please provide some content first.');
+      return;
+    }
+
+    setIsAiLoading(true);
+    try {
+      const currentLang = language as 'th' | 'en';
+      let prompt = '';
+      
+      if (action === 'SUMMARIZE') prompt = AI_PROMPTS.SUMMARIZE(content, currentLang);
+      else if (action === 'SUGGEST_TOOLS') prompt = AI_PROMPTS.SUGGEST_TOOLS(content);
+      else if (action === 'IMPROVE_WRITING') prompt = AI_PROMPTS.IMPROVE_WRITING(content, currentLang);
+
+      const result = await askAI(prompt);
+
+      if (action === 'SUGGEST_TOOLS') {
+        const suggested = result.split(',').map(s => s.trim()).filter(s => s && !tools.includes(s));
+        if (suggested.length > 0) {
+          setTools([...tools, ...suggested]);
+          showAlert.success('AI Suggestion', language === 'th' ? `เพิ่ม ${suggested.length} เทคโนโลยีใหม่` : `Added ${suggested.length} new tools.`);
+        } else {
+          showAlert.info('AI Suggestion', language === 'th' ? 'ไม่พบเทคโนโลยีใหม่' : 'No new tools found.');
+        }
+      } else {
+        setContent(result);
+        showAlert.success('AI Processed', language === 'th' ? 'เนื้อหาถูกปรับปรุงแล้ว' : 'Content has been updated.');
+      }
+    } catch (error: any) {
+      showAlert.error('AI Error', error.message);
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
@@ -214,10 +253,45 @@ export function JournalForm({ initialEntry, onSave, onUpdate, onClose }: Journal
 
           <div className="flex-1 flex flex-col bg-[#080808] relative overflow-hidden">
             <div className="flex-shrink-0 px-8 py-4 border-b border-white/[0.05] flex items-center justify-between bg-white/[0.01]">
-              <div className="flex items-center gap-2 text-zinc-500">
-                <Edit3 size={14} />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{language === 'th' ? 'รายละเอียดงาน' : 'Work Analysis'}</span>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2 text-zinc-500">
+                  <Edit3 size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">{language === 'th' ? 'รายละเอียดงาน' : 'Work Analysis'}</span>
+                </div>
+
+                <div className="h-4 w-px bg-white/[0.05]" />
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isAiLoading}
+                    onClick={() => handleAiAction('IMPROVE_WRITING')}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-blue-600/10 border border-blue-500/20 rounded-lg text-[9px] font-black text-blue-400 uppercase tracking-widest hover:bg-blue-600/20 transition-all disabled:opacity-50"
+                  >
+                    {isAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                    {language === 'th' ? 'ขัดเกลาสำนวน' : 'Polish'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isAiLoading}
+                    onClick={() => handleAiAction('SUMMARIZE')}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/10 border border-indigo-500/20 rounded-lg text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:bg-indigo-600/20 transition-all disabled:opacity-50"
+                  >
+                    {isAiLoading ? <Loader2 size={12} className="animate-spin" /> : <BrainCircuit size={12} />}
+                    {language === 'th' ? 'สรุปเนื้อหา' : 'Summarize'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isAiLoading}
+                    onClick={() => handleAiAction('SUGGEST_TOOLS')}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600/10 border border-emerald-500/20 rounded-lg text-[9px] font-black text-emerald-400 uppercase tracking-widest hover:bg-emerald-600/20 transition-all disabled:opacity-50"
+                  >
+                    {isAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />}
+                    {language === 'th' ? 'แนะนำเครื่องมือ' : 'Tools'}
+                  </button>
+                </div>
               </div>
+
               <div className="flex bg-zinc-950 border border-white/[0.05] rounded-xl p-1">
                 <button 
                   type="button" 
