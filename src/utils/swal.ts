@@ -27,6 +27,19 @@ export const showAlert = {
       }
     });
   },
+  info: (title: string, text?: string) => {
+    Swal.fire({
+      icon: 'info',
+      title,
+      text,
+      background: '#18181b',
+      color: '#f4f4f5',
+      confirmButtonColor: '#2563eb',
+      customClass: {
+        popup: 'rounded-2xl border border-zinc-800 shadow-2xl',
+      }
+    });
+  },
   confirm: async (title: string, text?: string) => {
     const result = await Swal.fire({
       title,

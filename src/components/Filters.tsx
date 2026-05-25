@@ -1,4 +1,4 @@
-import { Search, Filter, Calendar, X, Hash, RotateCcw } from 'lucide-react';
+import { Search, Filter, Calendar, Hash, RotateCcw } from 'lucide-react';
 import type { FilterState } from '../types';
 import { useTranslation } from '../utils/i18n';
 

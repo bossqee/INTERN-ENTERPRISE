@@ -1,5 +1,5 @@
 import type { JournalEntry } from '../types';
-import { Calendar, Tag, FileDown, Edit2, Trash2, Maximize2 } from 'lucide-react';
+import { Calendar, Tag, FileDown, Edit2, Trash2 } from 'lucide-react';
 import { MarkdownPreview } from './MarkdownPreview';
 import { format } from 'date-fns';
 import { getImageUrl } from '../utils/imageProcess';
